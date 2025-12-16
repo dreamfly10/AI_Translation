@@ -4,13 +4,6 @@ import GoogleProvider from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { db } from './db';
 
-// #region agent log
-if (typeof window === 'undefined') {
-  const logEndpoint = 'http://127.0.0.1:7242/ingest/4522d9df-bdad-4563-bb43-9ffb355963c3';
-  fetch(logEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'startup', hypothesisId: 'H4', location: 'lib/auth.ts:8', message: 'auth.ts module loading', data: { hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET, hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID, hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET }, timestamp: Date.now() }) }).catch(() => {});
-}
-// #endregion
-
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
