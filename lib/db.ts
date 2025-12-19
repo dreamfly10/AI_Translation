@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabaseServer, isSupabaseConfigured } from './supabase';
 
 export interface User {
   id: string;
@@ -25,7 +25,11 @@ interface Session {
 export const db = {
   user: {
     async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) {
-      const { data: user, error } = await supabase
+      if (!isSupabaseConfigured()) {
+        throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.');
+      }
+
+      const { data: user, error } = await supabaseServer
         .from('users')
         .insert({
           email: data.email,
@@ -46,6 +50,13 @@ export const db = {
 
       if (error) {
         console.error('Error creating user:', error);
+        // Provide more helpful error messages
+        if (error.code === '42P01') {
+          throw new Error('Database table "users" does not exist. Please run the SQL schema from supabase/schema.sql in your Supabase SQL Editor.');
+        }
+        if (error.message?.includes('JWT')) {
+          throw new Error('Invalid Supabase API key. Please check your NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local');
+        }
         throw error;
       }
 
@@ -53,7 +64,11 @@ export const db = {
     },
 
     async findByEmail(email: string): Promise<User | null> {
-      const { data, error } = await supabase
+      if (!isSupabaseConfigured()) {
+        return null; // Return null if not configured (for graceful degradation)
+      }
+
+      const { data, error } = await supabaseServer
         .from('users')
         .select('*')
         .eq('email', email)
@@ -72,7 +87,7 @@ export const db = {
     },
 
     async findById(id: string): Promise<User | null> {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseServer
         .from('users')
         .select('*')
         .eq('id', id)
@@ -108,7 +123,7 @@ export const db = {
           : null;
       if (data.paymentId !== undefined) updateData.payment_id = data.paymentId;
 
-      const { data: user, error } = await supabase
+      const { data: user, error } = await supabaseServer
         .from('users')
         .update(updateData)
         .eq('id', id)

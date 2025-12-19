@@ -22,7 +22,7 @@ Output ONLY the translated text.`;
 ${text}`;
 
   const response = await openai.chat.completions.create({
-    model: 'o4-mini',
+    model: 'gpt-4o-mini',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -58,7 +58,7 @@ Translated article:
 ${chineseTranslation}`;
 
   const response = await openai.chat.completions.create({
-    model: 'o3',
+    model: 'gpt-4o',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },

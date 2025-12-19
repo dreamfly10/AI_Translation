@@ -20,7 +20,8 @@ This application allows users to input an article link or raw text, automaticall
 - **Backend**: Next.js API routes
 - **Authentication**: NextAuth.js (Email/Password + Google OAuth)
 - **AI**: OpenAI API
-- **Database**: In-memory (easily replaceable with PostgreSQL, MongoDB, etc.)
+- **Database**: Supabase
+- **Infra**: Vercel
 
 ## High-Level Architecture
 

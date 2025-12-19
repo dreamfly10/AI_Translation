@@ -6,27 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test-supabase": "node scripts/test-supabase.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0-rc.12",
     "next": "^14.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "next-auth": "^4.24.5",
     "openai": "^4.20.1",
-    "cheerio": "^1.0.0-rc.12",
-    "bcryptjs": "^2.4.3",
-    "zod": "^3.22.4",
-    "@supabase/supabase-js": "^2.39.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.2",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@types/bcryptjs": "^2.4.2",
-    "typescript": "^5.0.0",
+    "dotenv": "^17.2.3",
     "eslint": "^8.0.0",
-    "eslint-config-next": "^14.0.0"
+    "eslint-config-next": "^14.0.0",
+    "typescript": "^5.0.0"
   }
 }
-

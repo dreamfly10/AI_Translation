@@ -41,16 +41,20 @@ export function TokenUsage() {
 
   if (loading) {
     return (
-      <div className="token-usage" style={{ padding: '1rem', background: '#f5f5f5', borderRadius: '8px', marginBottom: '1rem' }}>
-        <p>Loading token usage...</p>
+      <div className="card" style={{ marginBottom: 'var(--spacing-lg)' }}>
+        <p style={{ color: 'var(--color-text-secondary)' }}>Loading token usage...</p>
       </div>
     );
   }
 
   if (error || !usage) {
     return (
-      <div className="token-usage" style={{ padding: '1rem', background: '#fee', borderRadius: '8px', marginBottom: '1rem', color: '#c00' }}>
-        <p>Error: {error || 'Failed to load token usage'}</p>
+      <div className="card" style={{ 
+        marginBottom: 'var(--spacing-lg)', 
+        background: 'rgba(239, 68, 68, 0.1)',
+        borderColor: 'var(--color-error)'
+      }}>
+        <p style={{ color: 'var(--color-error)' }}>Error: {error || 'Failed to load token usage'}</p>
       </div>
     );
   }
@@ -60,12 +64,11 @@ export function TokenUsage() {
   const isExceeded = usage.tokensRemaining <= 0 && usage.userType === 'trial';
 
   return (
-    <div className="token-usage" style={{ 
-      padding: '1rem', 
-      background: isExceeded ? '#fee' : isLow ? '#fff3cd' : '#f5f5f5', 
-      borderRadius: '8px', 
-      marginBottom: '1rem',
-      border: isExceeded ? '2px solid #c00' : isLow ? '2px solid #ffc107' : '1px solid #ddd'
+    <div className="card" style={{ 
+      marginBottom: 'var(--spacing-lg)',
+      background: isExceeded ? 'rgba(239, 68, 68, 0.1)' : isLow ? 'rgba(245, 158, 11, 0.1)' : 'var(--color-background)',
+      borderColor: isExceeded ? 'var(--color-error)' : isLow ? 'var(--color-warning)' : 'var(--color-border)',
+      borderWidth: isExceeded || isLow ? '2px' : '1px'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
         <h3 style={{ margin: 0, fontSize: '1rem' }}>
@@ -92,27 +95,28 @@ export function TokenUsage() {
       <div style={{ marginBottom: '0.5rem' }}>
         <div style={{
           width: '100%',
-          height: '20px',
-          background: '#e0e0e0',
-          borderRadius: '10px',
+          height: '24px',
+          background: 'var(--color-background-tertiary)',
+          borderRadius: 'var(--radius-full)',
           overflow: 'hidden',
-          marginBottom: '0.5rem'
+          marginBottom: 'var(--spacing-md)'
         }}>
           <div
             style={{
               width: `${Math.min(percentage, 100)}%`,
               height: '100%',
-              background: isExceeded ? '#dc3545' : isLow ? '#ffc107' : '#28a745',
-              transition: 'width 0.3s ease'
+              background: isExceeded ? 'var(--color-error)' : isLow ? 'var(--color-warning)' : 'var(--color-success)',
+              transition: 'width var(--transition-slow)',
+              borderRadius: 'var(--radius-full)'
             }}
           />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: '#666' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
           <span>
             {usage.tokensUsed.toLocaleString()} / {usage.limit.toLocaleString()} tokens used
           </span>
           {usage.userType === 'trial' && (
-            <span style={{ color: isExceeded ? '#dc3545' : '#666' }}>
+            <span style={{ color: isExceeded ? 'var(--color-error)' : 'var(--color-text-secondary)' }}>
               {usage.tokensRemaining.toLocaleString()} remaining
             </span>
           )}
@@ -121,13 +125,13 @@ export function TokenUsage() {
 
       {isExceeded && (
         <div style={{
-          padding: '0.75rem',
-          background: '#fff',
-          borderRadius: '4px',
-          border: '1px solid #dc3545',
-          marginTop: '0.5rem'
+          padding: 'var(--spacing-md)',
+          background: 'var(--color-background)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--color-error)',
+          marginTop: 'var(--spacing-md)'
         }}>
-          <p style={{ margin: 0, color: '#dc3545', fontWeight: 'bold' }}>
+          <p style={{ margin: 0, color: 'var(--color-error)', fontWeight: 600 }}>
             ⚠️ Token limit reached! Please upgrade to continue using the service.
           </p>
         </div>
@@ -135,13 +139,13 @@ export function TokenUsage() {
 
       {usage.userType === 'trial' && !isExceeded && isLow && (
         <div style={{
-          padding: '0.75rem',
-          background: '#fff',
-          borderRadius: '4px',
-          border: '1px solid #ffc107',
-          marginTop: '0.5rem'
+          padding: 'var(--spacing-md)',
+          background: 'var(--color-background)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--color-warning)',
+          marginTop: 'var(--spacing-md)'
         }}>
-          <p style={{ margin: 0, color: '#856404' }}>
+          <p style={{ margin: 0, color: 'var(--color-warning)', fontWeight: 500 }}>
             ⚠️ You're running low on tokens. Consider upgrading for unlimited access.
           </p>
         </div>

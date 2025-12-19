@@ -49,8 +49,39 @@ export async function POST(request: Request) {
     }
 
     console.error('Registration error:', error);
+    
+    // Provide more helpful error messages
+    let errorMessage = 'Internal server error';
+    let errorDetails: any = {};
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = {
+        message: error.message,
+        name: error.name,
+      };
+      
+      // Check for specific Supabase errors
+      if (error.message.includes('Supabase is not configured')) {
+        errorMessage = 'Database not configured. Please check your Supabase settings in .env.local';
+      } else if (error.message.includes('JWT') || error.message.includes('Invalid API key')) {
+        errorMessage = 'Invalid Supabase API key. Please check NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local. It should start with "eyJ" (legacy) or "sb_publishable_" (new format)';
+      } else if (error.message.includes('does not exist')) {
+        errorMessage = 'Database table does not exist. Please run the SQL schema from supabase/schema.sql in your Supabase SQL Editor.';
+      }
+    }
+    
+    // Log full error for debugging (server-side only)
+    console.error('Full error details:', {
+      error,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: errorMessage,
+        ...errorDetails
+      },
       { status: 500 }
     );
   }

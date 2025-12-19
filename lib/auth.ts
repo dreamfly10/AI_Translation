@@ -17,28 +17,38 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await db.user.findByEmail(credentials.email);
-        if (!user || !user.password) {
+        try {
+          const user = await db.user.findByEmail(credentials.email);
+          if (!user || !user.password) {
+            return null;
+          }
+
+          const isValid = await bcrypt.compare(credentials.password, user.password);
+          if (!isValid) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+          };
+        } catch (error) {
+          console.error('Error in authorize callback:', error);
           return null;
         }
-
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-        };
       },
     }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    // Only add Google Provider if credentials are configured
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
@@ -58,11 +68,28 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
+    async jwt({ token, user }) {
+      // Store user id in token during sign in
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
     async session({ session, token }) {
-      if (session.user?.email) {
-        const user = await db.user.findByEmail(session.user.email);
-        if (user) {
-          (session.user as any).id = user.id;
+      // Use token.id if available (set during signIn via jwt callback)
+      if (token.id) {
+        (session.user as any).id = token.id as string;
+      } else if (session.user?.email) {
+        // Fallback: try to get from database, but don't block if it fails
+        try {
+          const user = await db.user.findByEmail(session.user.email);
+          if (user?.id) {
+            (session.user as any).id = user.id;
+          }
+        } catch (error) {
+          // If database query fails, log but don't break the session
+          console.error('Error fetching user in session callback:', error);
+          // Session can still work without the user ID from database
         }
       }
       return session;

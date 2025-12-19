@@ -77,25 +77,55 @@ export default function ArticleProcessor() {
       <form onSubmit={handleSubmit} className="card">
         <h2>Process Article</h2>
         
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
+        <div style={{ 
+          display: 'flex', 
+          gap: 'var(--spacing-lg)', 
+          marginBottom: 'var(--spacing-lg)',
+          padding: 'var(--spacing-md)',
+          background: 'var(--color-background-secondary)',
+          borderRadius: 'var(--radius-md)'
+        }}>
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 'var(--spacing-sm)',
+            cursor: 'pointer',
+            flex: 1,
+            padding: 'var(--spacing-sm)',
+            borderRadius: 'var(--radius-sm)',
+            background: inputType === 'url' ? 'var(--color-primary)' : 'transparent',
+            color: inputType === 'url' ? 'white' : 'var(--color-text-primary)',
+            transition: 'all var(--transition-base)'
+          }}>
             <input
               type="radio"
               value="url"
               checked={inputType === 'url'}
               onChange={(e) => setInputType(e.target.value as 'url' | 'text')}
+              style={{ margin: 0, cursor: 'pointer' }}
             />
-            {' '}URL
+            URL
           </label>
-          {' '}
-          <label>
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 'var(--spacing-sm)',
+            cursor: 'pointer',
+            flex: 1,
+            padding: 'var(--spacing-sm)',
+            borderRadius: 'var(--radius-sm)',
+            background: inputType === 'text' ? 'var(--color-primary)' : 'transparent',
+            color: inputType === 'text' ? 'white' : 'var(--color-text-primary)',
+            transition: 'all var(--transition-base)'
+          }}>
             <input
               type="radio"
               value="text"
               checked={inputType === 'text'}
               onChange={(e) => setInputType(e.target.value as 'url' | 'text')}
+              style={{ margin: 0, cursor: 'pointer' }}
             />
-            {' '}Raw Text
+            Raw Text
           </label>
         </div>
 
@@ -122,28 +152,20 @@ export default function ArticleProcessor() {
 
         {error && (
           <div style={{ 
-            color: 'red', 
-            marginTop: '1rem',
-            padding: '1rem',
-            background: '#fee',
-            borderRadius: '4px',
-            border: '1px solid #c00'
+            color: 'var(--color-error)', 
+            marginTop: 'var(--spacing-lg)',
+            padding: 'var(--spacing-lg)',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-error)'
           }}>
-            <div style={{ marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: 'var(--spacing-md)', fontWeight: 500 }}>
               <strong>Error:</strong> {error}
             </div>
             {(error as any).upgradeRequired && (
               <button
                 onClick={() => window.location.href = '/upgrade'}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  marginTop: '0.5rem'
-                }}
+                style={{ marginTop: 'var(--spacing-md)' }}
               >
                 Upgrade to Paid
               </button>
@@ -152,7 +174,14 @@ export default function ArticleProcessor() {
         )}
 
         {result?.requiresSubscription && (
-          <div style={{ color: 'orange', marginTop: '1rem' }}>
+          <div style={{ 
+            color: 'var(--color-warning)', 
+            marginTop: 'var(--spacing-lg)',
+            padding: 'var(--spacing-md)',
+            background: 'rgba(245, 158, 11, 0.1)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-warning)'
+          }}>
             ⚠️ This URL appears to require a subscription. Content extraction may be limited.
           </div>
         )}
@@ -160,16 +189,38 @@ export default function ArticleProcessor() {
 
       {result && (
         <>
-          <div className="card">
-            <h2>Translation (中文翻译)</h2>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+          <div className="card" style={{ marginTop: 'var(--spacing-xl)' }}>
+            <h2 style={{ 
+              marginBottom: 'var(--spacing-lg)',
+              paddingBottom: 'var(--spacing-md)',
+              borderBottom: '2px solid var(--color-border)'
+            }}>
+              Translation (中文翻译)
+            </h2>
+            <div style={{ 
+              whiteSpace: 'pre-wrap', 
+              lineHeight: '1.8',
+              color: 'var(--color-text-primary)',
+              fontSize: '1.0625rem'
+            }}>
               {result.translation}
             </div>
           </div>
 
-          <div className="card">
-            <h2>Insights & Interpretation (深度解读)</h2>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+          <div className="card" style={{ marginTop: 'var(--spacing-xl)' }}>
+            <h2 style={{ 
+              marginBottom: 'var(--spacing-lg)',
+              paddingBottom: 'var(--spacing-md)',
+              borderBottom: '2px solid var(--color-border)'
+            }}>
+              Insights & Interpretation (深度解读)
+            </h2>
+            <div style={{ 
+              whiteSpace: 'pre-wrap', 
+              lineHeight: '1.8',
+              color: 'var(--color-text-primary)',
+              fontSize: '1.0625rem'
+            }}>
               {result.insights}
             </div>
           </div>
