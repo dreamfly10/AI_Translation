@@ -48,12 +48,23 @@ export default function AuthButtons({ session }: AuthButtonsProps) {
       }
 
       // Sign in after registration
-      await signIn('credentials', {
+      const signInResult = await signIn('credentials', {
         email: registerData.email,
         password: registerData.password,
         redirect: false,
       });
 
+      if (signInResult?.error) {
+        throw new Error('Failed to sign in after registration');
+      }
+
+      // Use window.location for full page reload to ensure session is loaded
+      if (signInResult?.ok) {
+        window.location.href = '/';
+        return;
+      }
+
+      // Fallback
       router.refresh();
       setShowRegister(false);
     } catch (err) {

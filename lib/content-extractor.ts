@@ -5,7 +5,33 @@ interface ExtractionResult {
   requiresSubscription: boolean;
 }
 
+// Known subscription-required domains
+const SUBSCRIPTION_DOMAINS = [
+  'wsj.com',
+  'nytimes.com',
+  'ft.com',
+  'economist.com',
+  'bloomberg.com',
+  'washingtonpost.com',
+  'theatlantic.com',
+  'newyorker.com',
+  'financialtimes.com',
+];
+
+function isKnownSubscriptionSite(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    return SUBSCRIPTION_DOMAINS.some(domain => hostname.includes(domain));
+  } catch {
+    return false;
+  }
+}
+
 export async function extractContentFromUrl(url: string): Promise<ExtractionResult> {
+  // Check if it's a known subscription site first
+  const isSubscriptionSite = isKnownSubscriptionSite(url);
+  
   try {
     const response = await fetch(url, {
       headers: {
@@ -14,6 +40,13 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
     });
 
     if (!response.ok) {
+      // If it's a known subscription site and fetch failed, assume subscription required
+      if (isSubscriptionSite) {
+        return {
+          content: '',
+          requiresSubscription: true,
+        };
+      }
       throw new Error(`Failed to fetch URL: ${response.statusText}`);
     }
 
@@ -28,12 +61,35 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
       'members-only',
       'locked-content',
       'subscribe-to-read',
+      'sign-in-to-read',
+      'login-to-read',
+      'premium-content',
+      'subscriber-only',
     ];
 
-    const requiresSubscription = paywallIndicators.some((indicator) => {
+    // Check for paywall in class/id attributes
+    let requiresSubscription = paywallIndicators.some((indicator) => {
       const selector = `[class*="${indicator}"], [id*="${indicator}"]`;
       return $(selector).length > 0;
     });
+
+    // Check for paywall in text content
+    const bodyText = $('body').text().toLowerCase();
+    const paywallTextIndicators = [
+      'subscribe to continue reading',
+      'sign in to read',
+      'log in to read',
+      'premium content',
+      'subscriber exclusive',
+      'members only',
+      'this article is for subscribers',
+    ];
+    
+    if (!requiresSubscription) {
+      requiresSubscription = paywallTextIndicators.some((indicator) => 
+        bodyText.includes(indicator)
+      );
+    }
 
     // Extract main content
     // Try common article selectors
@@ -63,6 +119,11 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
       // Remove script and style elements
       $('script, style, nav, footer, header, aside').remove();
       content = $('body').text().trim();
+      
+      // If content is still too short, it might be behind a paywall
+      if (content.length < 200) {
+        requiresSubscription = true;
+      }
     }
 
     // Clean up content
@@ -73,11 +134,32 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
 
     return {
       content: content || 'Could not extract content from URL',
-      requiresSubscription,
+      requiresSubscription: requiresSubscription || isSubscriptionSite,
     };
   } catch (error) {
     console.error('Error extracting content:', error);
-    throw new Error(`Failed to extract content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // If it's a known subscription site and fetch failed, return subscription required
+    if (isSubscriptionSite) {
+      return {
+        content: '',
+        requiresSubscription: true,
+      };
+    }
+    
+    // Check if error message indicates network/fetch failure
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('fetch failed') || errorMessage.includes('network') || errorMessage.includes('Failed to fetch')) {
+      // For known subscription sites, assume subscription required
+      if (isSubscriptionSite) {
+        return {
+          content: '',
+          requiresSubscription: true,
+        };
+      }
+    }
+    
+    throw new Error(`Failed to extract content: ${errorMessage}`);
   }
 }
 

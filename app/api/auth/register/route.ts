@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       name,
       userType: 'trial',
       tokensUsed: 0,
-      tokenLimit: 100000, // 100k tokens for trial users
+      tokenLimit: 1000, // 1k tokens for trial users
     });
 
     return NextResponse.json(

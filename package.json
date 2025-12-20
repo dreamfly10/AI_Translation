@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test-supabase": "node scripts/test-supabase.js"
+    "test-supabase": "node scripts/test-supabase.js",
+    "update-trial-limits": "node scripts/update-trial-token-limit.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

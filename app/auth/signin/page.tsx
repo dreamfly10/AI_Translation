@@ -15,31 +15,63 @@ export default function SignIn() {
   const [googleEnabled, setGoogleEnabled] = useState(false);
 
   const callbackUrl = searchParams?.get('callbackUrl') || '/';
+  const errorParam = searchParams?.get('error');
 
   // Check if Google auth is available
   useEffect(() => {
     getProviders().then((providers) => {
       setGoogleEnabled(!!providers?.google);
     });
-  }, []);
+    
+    // Clear error from URL if present (NextAuth redirects with error param)
+    if (errorParam === 'CredentialsSignin') {
+      // Clear the error from URL
+      const newUrl = window.location.pathname + (callbackUrl !== '/' ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [errorParam, callbackUrl]);
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: callbackUrl,
+      });
 
-    if (result?.error) {
-      setError('Invalid email or password');
+      if (result?.error) {
+        // Check if it's a real error or just NextAuth being weird
+        if (result.error === 'CredentialsSignin') {
+          setError('Invalid email or password');
+        } else {
+          setError(`Sign in failed: ${result.error}`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // If successful, wait for session to be established
+      if (result?.ok) {
+        // Use window.location for a full page reload to ensure session is loaded
+        // This is more reliable than router.push for authentication
+        window.location.href = callbackUrl;
+        return;
+      }
+
+      // Fallback: if result is undefined or doesn't have ok/error, try redirect anyway
+      // Sometimes NextAuth doesn't return proper result but still signs in
+      setTimeout(() => {
+        window.location.href = callbackUrl;
+      }, 500);
+    } catch (err) {
+      console.error('Sign in error:', err);
+      setError('An error occurred during sign in. Please try again.');
       setLoading(false);
-    } else {
-      router.push(callbackUrl);
-      router.refresh();
     }
   };
 
@@ -66,7 +98,7 @@ export default function SignIn() {
           <button type="submit" disabled={loading} style={{ width: '100%', marginTop: 'var(--spacing-md)' }}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
-          {error && (
+          {(error || errorParam === 'CredentialsSignin') && (
             <div style={{ 
               color: 'var(--color-error)', 
               marginTop: 'var(--spacing-md)',
@@ -75,7 +107,7 @@ export default function SignIn() {
               borderRadius: 'var(--radius-md)',
               fontSize: '0.875rem'
             }}>
-              {error}
+              {error || 'Invalid email or password. Please try again.'}
             </div>
           )}
         </form>

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   image TEXT,
   user_type TEXT NOT NULL DEFAULT 'trial' CHECK (user_type IN ('trial', 'paid')),
   tokens_used BIGINT NOT NULL DEFAULT 0,
-  token_limit BIGINT NOT NULL DEFAULT 100000, -- 100k tokens for trial users
+  token_limit BIGINT NOT NULL DEFAULT 1000, -- 1k tokens for trial users
   subscription_status TEXT CHECK (subscription_status IN ('active', 'expired', 'cancelled')),
   subscription_expires_at TIMESTAMPTZ,
   payment_id TEXT,

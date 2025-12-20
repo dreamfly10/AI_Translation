@@ -38,7 +38,7 @@ export const db = {
           image: data.image,
           user_type: data.userType || 'trial',
           tokens_used: data.tokensUsed ?? 0,
-          token_limit: data.tokenLimit ?? 100000,
+          token_limit: data.tokenLimit ?? 1000, // 1k tokens for trial users
           subscription_status: data.subscriptionStatus,
           subscription_expires_at: data.subscriptionExpiresAt
             ? new Date(data.subscriptionExpiresAt).toISOString()

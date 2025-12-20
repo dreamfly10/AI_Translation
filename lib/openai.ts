@@ -1,4 +1,11 @@
 import OpenAI from 'openai';
+import { 
+  StyleArchetype, 
+  getDefaultStyle, 
+  getStyleSystemPrompt, 
+  getStyleUserPrompt,
+  styleArchetypes 
+} from './prompt-styles';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -34,28 +41,13 @@ ${text}`;
   return response.choices[0]?.message?.content || '';
 }
 
-export async function generateInsights(chineseTranslation: string): Promise<string> {
-  const systemPrompt = `You are an expert analyst and editor writing for a Chinese-speaking audience.
-
-Your task:
-- Analyze the translated article
-- Provide clear, insightful interpretation
-- Explain why this article matters
-- Add context that a Chinese reader may not know
-- Be objective, thoughtful, and informative
-- Do NOT repeat the full article
-
-Structure your response using clear sections.`;
-
-  const userPrompt = `Based on the following translated article, provide:
-
-1. A concise summary (3–5 bullet points)
-2. Key takeaways
-3. Context and interpretation (why it matters)
-4. Any relevant background or implications
-
-Translated article:
-${chineseTranslation}`;
+export async function generateInsights(
+  chineseTranslation: string,
+  style: StyleArchetype = getDefaultStyle()
+): Promise<string> {
+  const styleConfig = styleArchetypes[style];
+  const systemPrompt = getStyleSystemPrompt(style);
+  const userPrompt = getStyleUserPrompt(chineseTranslation, style);
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -63,8 +55,8 @@ ${chineseTranslation}`;
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_tokens: 2000,
-    temperature: 0.7,
+    max_tokens: styleConfig.maxTokens,
+    temperature: styleConfig.temperature,
   });
 
   return response.choices[0]?.message?.content || '';

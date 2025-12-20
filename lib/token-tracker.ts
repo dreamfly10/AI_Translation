@@ -28,8 +28,13 @@ export async function checkTokenLimit(userId: string): Promise<{
 
   const tokensRemaining = user.tokenLimit - user.tokensUsed;
   
+  // For trial users, strictly enforce the limit - no processing if limit is reached
+  // For paid users, allow unlimited usage
+  const isTrialUser = user.userType === 'trial';
+  const hasRemainingTokens = tokensRemaining > 0;
+  
   return {
-    allowed: tokensRemaining > 0 || user.userType === 'paid',
+    allowed: user.userType === 'paid' || (isTrialUser && hasRemainingTokens),
     tokensUsed: user.tokensUsed,
     tokensRemaining: Math.max(0, tokensRemaining),
     limit: user.tokenLimit,

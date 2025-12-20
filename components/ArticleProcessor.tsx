@@ -1,25 +1,32 @@
 'use client';
 
 import { useState } from 'react';
+import { parseError, AppError } from '@/lib/error-handler';
+import SubscriptionRequired from './SubscriptionRequired';
+import { StyleArchetype, styleArchetypes, getDefaultStyle } from '@/lib/prompt-styles';
 
 interface ProcessResult {
   translation: string;
   insights: string;
   requiresSubscription?: boolean;
+  style?: StyleArchetype;
 }
 
 export default function ArticleProcessor() {
   const [inputType, setInputType] = useState<'url' | 'text'>('url');
   const [content, setContent] = useState('');
+  const [style, setStyle] = useState<StyleArchetype>(getDefaultStyle());
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ProcessResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
+  const [subscriptionUrl, setSubscriptionUrl] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setResult(null);
+    setSubscriptionUrl(null);
 
     try {
       const response = await fetch('/api/process-article', {
@@ -30,6 +37,7 @@ export default function ArticleProcessor() {
         body: JSON.stringify({
           inputType,
           content,
+          style,
         }),
       });
 
@@ -37,38 +45,89 @@ export default function ArticleProcessor() {
       const text = await response.text();
       
       if (!response.ok) {
-        // Try to parse as JSON, fallback to text if it fails
-        let errorMessage = 'Failed to process article';
         let errorData: any = null;
         try {
           errorData = JSON.parse(text);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-          
-          // Handle token limit error specifically
-          if (errorData.upgradeRequired) {
-            errorMessage = `${errorMessage}\n\nYou have used ${errorData.tokensUsed?.toLocaleString()} of ${errorData.limit?.toLocaleString()} tokens. Please upgrade to continue.`;
-          }
         } catch {
-          // If response is HTML (like a redirect page), show a more helpful error
+          // If response is HTML (like a redirect page)
           if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-            errorMessage = 'Server returned an error page. Please check if you are authenticated and try again.';
+            const parsedError = parseError({ 
+              message: 'Server returned an error page. Please check if you are authenticated and try again.',
+              error: 'SERVER_ERROR'
+            });
+            setError(parsedError);
+            return;
           } else {
-            errorMessage = text.substring(0, 200) || errorMessage;
+            const parsedError = parseError({ 
+              message: text.substring(0, 200) || 'An unexpected error occurred',
+              error: 'UNKNOWN_ERROR'
+            });
+            setError(parsedError);
+            return;
           }
         }
         
-        const error = new Error(errorMessage);
-        (error as any).upgradeRequired = errorData?.upgradeRequired;
-        throw error;
+        // Parse error using error handler
+        const parsedError = parseError(errorData);
+        
+        // Handle subscription required specially
+        if (parsedError.code === 'SUBSCRIPTION_REQUIRED' && inputType === 'url') {
+          setSubscriptionUrl(content);
+          setError(null);
+          return;
+        }
+        
+        // Handle authentication errors - redirect to sign in
+        if (parsedError.code === 'UNAUTHORIZED' || response.status === 401) {
+          parsedError.userMessage = 'Your session has expired. Please sign in again.';
+          parsedError.actionable = 'Sign in to continue';
+          setError(parsedError);
+          // Optionally redirect to sign in after a delay
+          setTimeout(() => {
+            window.location.href = '/auth/signin?callbackUrl=' + encodeURIComponent(window.location.pathname);
+          }, 2000);
+          return;
+        }
+        
+        // Add additional context for token errors
+        if (parsedError.code === 'TOKEN_LIMIT_REACHED' || parsedError.code === 'INSUFFICIENT_TOKENS') {
+          parsedError.userMessage = errorData.message || errorData.userMessage || parsedError.userMessage;
+          if (errorData.tokensUsed !== undefined && errorData.limit !== undefined) {
+            parsedError.userMessage = `${parsedError.userMessage} (${errorData.tokensUsed.toLocaleString()}/${errorData.limit.toLocaleString()} tokens used)`;
+          }
+        }
+        
+        setError(parsedError);
+        return;
       }
 
       // Parse the successful JSON response
       const data = JSON.parse(text);
-      setResult(data);
+      
+      // Check if subscription is required in the response
+      if (data.requiresSubscription && inputType === 'url') {
+        setSubscriptionUrl(content);
+        setResult(null);
+      } else {
+        setResult(data);
+        setSubscriptionUrl(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const parsedError = parseError(err);
+      setError(parsedError);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleContentPasted = (pastedContent: string) => {
+    setContent(pastedContent);
+    setInputType('text');
+    setSubscriptionUrl(null);
+    // Auto-submit the form
+    const form = document.querySelector('form');
+    if (form) {
+      form.requestSubmit();
     }
   };
 
@@ -146,46 +205,104 @@ export default function ArticleProcessor() {
           />
         )}
 
-        <button type="submit" disabled={loading}>
+        <div style={{ marginTop: 'var(--spacing-md)' }}>
+          <label style={{ 
+            display: 'block',
+            marginBottom: 'var(--spacing-sm)',
+            fontWeight: 500,
+            color: 'var(--color-text-primary)'
+          }}>
+            Writing Style (写作风格):
+          </label>
+          <select
+            value={style}
+            onChange={(e) => setStyle(e.target.value as StyleArchetype)}
+            style={{
+              width: '100%',
+              padding: '0.75rem 1rem',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '1rem',
+              background: 'var(--color-background)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            {Object.entries(styleArchetypes).map(([key, config]) => (
+              <option key={key} value={key}>
+                {config.name} - {config.description}
+              </option>
+            ))}
+          </select>
+          <p style={{ 
+            fontSize: '0.875rem', 
+            color: 'var(--color-text-secondary)',
+            marginTop: 'var(--spacing-xs)'
+          }}>
+            {styleArchetypes[style].description}
+          </p>
+        </div>
+
+        <button type="submit" disabled={loading} style={{ marginTop: 'var(--spacing-md)' }}>
           {loading ? 'Processing...' : 'Process Article'}
         </button>
 
         {error && (
           <div style={{ 
-            color: 'var(--color-error)', 
             marginTop: 'var(--spacing-lg)',
             padding: 'var(--spacing-lg)',
-            background: 'rgba(239, 68, 68, 0.1)',
+            background: error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS' 
+              ? 'rgba(245, 158, 11, 0.1)' 
+              : 'rgba(239, 68, 68, 0.1)',
             borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--color-error)'
+            border: `1px solid ${error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS' 
+              ? 'var(--color-warning)' 
+              : 'var(--color-error)'}`
           }}>
-            <div style={{ marginBottom: 'var(--spacing-md)', fontWeight: 500 }}>
-              <strong>Error:</strong> {error}
+            <div style={{ 
+              marginBottom: 'var(--spacing-md)',
+              fontWeight: 500,
+              color: error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS'
+                ? 'var(--color-warning)'
+                : 'var(--color-error)'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 'var(--spacing-sm)',
+                marginBottom: 'var(--spacing-sm)'
+              }}>
+                <span>{error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS' ? '⚠️' : '❌'}</span>
+                <strong>{error.userMessage}</strong>
+              </div>
             </div>
-            {(error as any).upgradeRequired && (
+            {error.actionable && (
+              <div style={{ 
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.875rem',
+                marginBottom: 'var(--spacing-md)'
+              }}>
+                💡 {error.actionable}
+              </div>
+            )}
+            {(error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS') && (
               <button
                 onClick={() => window.location.href = '/upgrade'}
                 style={{ marginTop: 'var(--spacing-md)' }}
               >
-                Upgrade to Paid
+                Upgrade to Paid Plan
               </button>
             )}
           </div>
         )}
-
-        {result?.requiresSubscription && (
-          <div style={{ 
-            color: 'var(--color-warning)', 
-            marginTop: 'var(--spacing-lg)',
-            padding: 'var(--spacing-md)',
-            background: 'rgba(245, 158, 11, 0.1)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--color-warning)'
-          }}>
-            ⚠️ This URL appears to require a subscription. Content extraction may be limited.
-          </div>
-        )}
       </form>
+
+      {subscriptionUrl && (
+        <SubscriptionRequired 
+          url={subscriptionUrl} 
+          onContentPasted={handleContentPasted}
+        />
+      )}
 
       {result && (
         <>
