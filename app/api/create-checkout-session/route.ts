@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { stripe, STRIPE_PRICE_ID } from '@/lib/stripe';
+import { stripe, STRIPE_PRICE_ID, isStripeConfigured } from '@/lib/stripe';
 
 export async function POST(request: Request) {
   try {
+    // Check if Stripe is configured
+    if (!isStripeConfigured()) {
+      return NextResponse.json(
+        { error: 'Payment system not configured' },
+        { status: 500 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
       return NextResponse.json(

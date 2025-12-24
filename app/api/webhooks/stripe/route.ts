@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { stripe } from '@/lib/stripe';
+import { stripe, isStripeConfigured } from '@/lib/stripe';
 import { db } from '@/lib/db';
 
 export async function POST(request: Request) {
@@ -20,6 +20,15 @@ export async function POST(request: Request) {
     console.error('STRIPE_WEBHOOK_SECRET is not set');
     return NextResponse.json(
       { error: 'Webhook secret not configured' },
+      { status: 500 }
+    );
+  }
+
+  // Validate Stripe is configured
+  if (!isStripeConfigured()) {
+    console.error('STRIPE_SECRET_KEY is not configured');
+    return NextResponse.json(
+      { error: 'Stripe not configured' },
       { status: 500 }
     );
   }
@@ -210,4 +219,5 @@ export async function POST(request: Request) {
 
 // Disable body parsing for webhooks (Next.js will handle it)
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
