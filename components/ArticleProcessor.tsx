@@ -57,9 +57,11 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       setStyle(article.style || getDefaultStyle());
       
       // Set result to display translation and insights
+      // Clean insights to remove markdown headers
+      const cleanedInsights = article.insights.replace(/^#{1,3}\s+/gm, '');
       setResult({
         translation: article.translatedContent,
-        insights: article.insights,
+        insights: cleanedInsights,
         style: article.style || getDefaultStyle(),
         articleId: article.id,
       });
@@ -326,7 +328,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
           >
             {Object.entries(styleArchetypes).map(([key, config]) => (
               <option key={key} value={key}>
-                {config.name} - {config.description}
+                {config.nameEn} ({config.name}) - {config.description}
               </option>
             ))}
           </select>
@@ -437,7 +439,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
               color: 'var(--color-text-primary)',
               fontSize: '1.0625rem'
             }}>
-              {result.insights}
+              {result.insights.replace(/^#{1,3}\s+/gm, '')}
             </div>
           </div>
         </>

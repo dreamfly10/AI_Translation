@@ -12,6 +12,7 @@ export type StyleArchetype =
 
 export interface StyleConfig {
   name: string;
+  nameEn: string; // English name
   description: string;
   tone: string;
   structure: {
@@ -29,6 +30,7 @@ export interface StyleConfig {
 export const styleArchetypes: Record<StyleArchetype, StyleConfig> = {
   warmBookish: {
     name: '温暖书卷风',
+    nameEn: 'Warm Bookish',
     description: '深度阅读+情绪共鸣+长文风格，像十点读书那样陪伴读者',
     tone: '温暖、温和、略带抒情；共情；"陪你读/陪你想"的陪伴感',
     structure: {
@@ -49,6 +51,7 @@ export const styleArchetypes: Record<StyleArchetype, StyleConfig> = {
 
   lifeReflection: {
     name: '人生思考+实用智慧',
+    nameEn: 'Life Reflection',
     description: '像有书那样提供人生思考+读书方法论+稳定输出',
     tone: '冷静、鼓励、略带说教但友好；像"靠谱前辈/班主任"',
     structure: {
@@ -69,6 +72,7 @@ export const styleArchetypes: Record<StyleArchetype, StyleConfig> = {
 
   contrarian: {
     name: '反直觉评论+犀利逻辑',
+    nameEn: 'Contrarian',
     description: '像远方青木那样观点尖锐、反直觉、逻辑推进强',
     tone: '自信、直接、偶尔讽刺；有冲击力；较少"共情"，更多"拆解"',
     structure: {
@@ -89,6 +93,7 @@ export const styleArchetypes: Record<StyleArchetype, StyleConfig> = {
 
   education: {
     name: '教育/写作/互联网观察',
+    nameEn: 'Education',
     description: '像玉树芝兰那样提供框架和可教方法；思考但实用',
     tone: '理性、反思、偶尔个人经验；较少煽情、更多"方法论+观察"',
     structure: {
@@ -109,6 +114,7 @@ export const styleArchetypes: Record<StyleArchetype, StyleConfig> = {
 
   science: {
     name: '科学解释+怀疑思维',
+    nameEn: 'Science',
     description: '像果壳那样让复杂话题易懂；纠正误解',
     tone: '好奇、精确、有趣但严谨；尊重证据；避免耸人听闻',
     structure: {

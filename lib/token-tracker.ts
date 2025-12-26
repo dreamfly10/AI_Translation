@@ -26,12 +26,39 @@ export async function checkTokenLimit(userId: string): Promise<{
     throw new Error('User not found');
   }
 
-  const tokensRemaining = user.tokenLimit - user.tokensUsed;
-  
-  // For trial users, strictly enforce the limit - no processing if limit is reached
-  // For paid users, enforce the 1M token monthly limit
+  // Enforce correct token limits based on user type
+  // Paid users should always have 100k tokens, regardless of what's stored in DB
   const isTrialUser = user.userType === 'trial';
   const isPaidUser = user.userType === 'paid';
+  
+  // Set the correct limit based on user type
+  const correctLimit = isPaidUser ? 100000 : 1000; // 100k for paid, 1k for trial
+  
+  // If the stored limit doesn't match the correct limit, update it
+  // This ensures existing paid users are migrated to the new limit
+  if (user.tokenLimit !== correctLimit) {
+    try {
+      // If user has used more tokens than the new limit allows, cap tokensUsed
+      let tokensUsedToStore = user.tokensUsed;
+      if (tokensUsedToStore > correctLimit) {
+        tokensUsedToStore = correctLimit;
+        console.log(`User ${userId} had ${user.tokensUsed} tokens used, capping to ${correctLimit} for new limit`);
+      }
+      
+      await db.user.update(userId, {
+        tokenLimit: correctLimit,
+        tokensUsed: tokensUsedToStore,
+      });
+      // Update user object for current calculation
+      user.tokenLimit = correctLimit;
+      user.tokensUsed = tokensUsedToStore;
+    } catch (error) {
+      console.error('Error updating user token limit:', error);
+      // Continue with current limit if update fails, but use correct limit for calculation
+    }
+  }
+  
+  const tokensRemaining = correctLimit - user.tokensUsed;
   const hasRemainingTokens = tokensRemaining > 0;
   
   // Check if subscription is still active for paid users
@@ -49,7 +76,7 @@ export async function checkTokenLimit(userId: string): Promise<{
     allowed,
     tokensUsed: user.tokensUsed,
     tokensRemaining: Math.max(0, tokensRemaining),
-    limit: user.tokenLimit,
+    limit: correctLimit, // Always return the correct limit
     userType: user.userType,
   };
 }
@@ -64,7 +91,7 @@ export async function consumeTokens(userId: string, tokens: number): Promise<voi
   }
   
   // Track token usage for both trial and paid users
-  // Paid users have a 1M token monthly limit that resets with subscription renewal
+  // Paid users have a 100k token monthly limit that resets with subscription renewal
   // Trial users have a 1K token limit
   await db.user.update(userId, {
     tokensUsed: user.tokensUsed + tokens,

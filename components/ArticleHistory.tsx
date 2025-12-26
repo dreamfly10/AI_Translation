@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { styleArchetypes, StyleArchetype } from '@/lib/prompt-styles';
 
 interface Article {
   id: string;
@@ -8,6 +9,15 @@ interface Article {
   createdAt: string;
   inputType: 'url' | 'text';
   sourceUrl?: string;
+  style?: string;
+}
+
+// Helper to format style display
+function formatStyleDisplay(styleKey?: string): string | null {
+  if (!styleKey) return null;
+  const style = styleArchetypes[styleKey as StyleArchetype];
+  if (!style) return styleKey;
+  return `${style.nameEn} (${style.name})`;
 }
 
 interface ArticleHistoryProps {
@@ -251,9 +261,9 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
                       fontSize: '0.875rem',
                       fontWeight: 500,
                       marginBottom: 'var(--spacing-xs)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word',
+                      lineHeight: '1.4',
                     }}>
                       {article.title}
                     </div>
@@ -263,13 +273,20 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
                       display: 'flex',
                       alignItems: 'center',
                       gap: 'var(--spacing-xs)',
+                      flexWrap: 'wrap',
                     }}>
                       <span>{formatDate(article.createdAt)}</span>
                       {article.inputType === 'url' && (
-                        <span>•</span>
+                        <>
+                          <span>•</span>
+                          <span style={{ fontSize: '0.7rem' }}>🔗</span>
+                        </>
                       )}
-                      {article.inputType === 'url' && (
-                        <span style={{ fontSize: '0.7rem' }}>🔗</span>
+                      {formatStyleDisplay(article.style) && (
+                        <>
+                          <span>•</span>
+                          <span style={{ fontSize: '0.7rem' }}>{formatStyleDisplay(article.style)}</span>
+                        </>
                       )}
                     </div>
                   </div>

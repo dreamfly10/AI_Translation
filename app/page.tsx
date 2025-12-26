@@ -1,18 +1,16 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ArticleProcessor from '@/components/ArticleProcessor';
 import AuthButtons from '@/components/AuthButtons';
 import { UserHomePage } from '@/components/UserHomePage';
-import { SupportForm } from '@/components/SupportForm';
 import Link from 'next/link';
 
 function HomeContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
-  const [showSupport, setShowSupport] = useState(false);
 
   // Handle upgrade success redirect
   useEffect(() => {
@@ -43,19 +41,6 @@ function HomeContent() {
             <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>AI Translate</h1>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-            <button
-              onClick={() => setShowSupport(true)}
-              className="outline"
-              style={{ 
-                fontSize: '0.875rem',
-                padding: '0.5rem 1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              💬 Support
-            </button>
             <AuthButtons session={session} />
           </div>
         </div>
@@ -193,9 +178,6 @@ function HomeContent() {
           <p style={{ fontSize: '0.875rem' }}>Transforming content with intelligence and precision.</p>
         </div>
           </footer>
-
-      {/* Support Form Modal */}
-      <SupportForm isOpen={showSupport} onClose={() => setShowSupport(false)} />
     </>
   );
 }

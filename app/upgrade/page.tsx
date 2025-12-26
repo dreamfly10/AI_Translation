@@ -105,7 +105,7 @@ function UpgradePageContent() {
         <div className="card" style={{ marginTop: 'var(--spacing-xl)' }}>
           <h2>Paid Plan Benefits</h2>
           <ul style={{ lineHeight: '1.8', marginBottom: 'var(--spacing-lg)' }}>
-            <li>✅ <strong>1,000,000 tokens</strong> per month</li>
+            <li>✅ <strong>100,000 tokens</strong> per month</li>
             <li>✅ <strong>30-day subscription</strong> period</li>
             <li>✅ <strong>Priority support</strong></li>
             <li>✅ <strong>No usage restrictions</strong></li>

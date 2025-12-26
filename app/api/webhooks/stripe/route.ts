@@ -78,18 +78,18 @@ export async function POST(request: Request) {
           }
         }
 
-        // Update user to paid status with 1M tokens
+        // Update user to paid status with 100k tokens
         // Reset tokensUsed to 0 when user first subscribes
         await db.user.update(userId, {
           userType: 'paid',
-          tokenLimit: 1000000, // 1M tokens for paid users
+          tokenLimit: 100000, // 100k tokens for paid users
           tokensUsed: 0, // Reset token usage when subscription starts
           subscriptionStatus: 'active',
           subscriptionExpiresAt: subscriptionExpiresAt,
           paymentId: session.id,
         });
 
-        console.log(`Successfully upgraded user ${userId} to paid status with 1M tokens`);
+        console.log(`Successfully upgraded user ${userId} to paid status with 100k tokens`);
         break;
       }
 
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
           await db.user.update(userId, {
             subscriptionStatus: 'active',
             subscriptionExpiresAt: new Date(subscription.current_period_end * 1000),
-            tokenLimit: 1000000, // Ensure 1M tokens for active subscription
+            tokenLimit: 100000, // Ensure 100k tokens for active subscription
             paymentId: subscription.id,
           });
         } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
               subscriptionExpiresAt: subscription.current_period_end 
                 ? new Date(subscription.current_period_end * 1000) 
                 : undefined,
-              tokenLimit: 1000000, // Ensure 1M tokens on renewal
+              tokenLimit: 100000, // Ensure 100k tokens on renewal
             };
             
             // Reset tokensUsed on monthly renewal

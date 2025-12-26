@@ -2,11 +2,20 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { z } from 'zod';
 
+// Helper to count words
+const countWords = (text: string): number => {
+  return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+};
+
 const supportSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
   subject: z.string().min(1, 'Subject is required'),
-  message: z.string().min(10, 'Message must be at least 10 characters'),
+  message: z.string()
+    .min(1, 'Message is required')
+    .refine((msg) => countWords(msg) >= 10, {
+      message: 'Message must contain at least 10 words',
+    }),
 });
 
 export async function POST(request: Request) {
@@ -83,10 +92,14 @@ ${message}
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      // Get the first validation error message for better user feedback
+      const firstError = error.errors[0];
+      const errorMessage = firstError?.message || 'Please check your form inputs';
+      
       return NextResponse.json(
         { 
-          error: 'Invalid input', 
-          message: error.errors[0]?.message || 'Please check your form inputs',
+          error: errorMessage,
+          message: errorMessage,
           details: error.errors 
         },
         { status: 400 }

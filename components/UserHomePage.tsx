@@ -5,12 +5,14 @@ import { TokenUsage } from '@/components/TokenUsage';
 import ArticleProcessor from '@/components/ArticleProcessor';
 import { PaidPlanBenefits } from '@/components/PaidPlanBenefits';
 import { ArticleHistory } from '@/components/ArticleHistory';
+import { SupportForm } from '@/components/SupportForm';
 
 export function UserHomePage() {
   const [userType, setUserType] = useState<'trial' | 'paid' | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showSupport, setShowSupport] = useState(false);
 
   useEffect(() => {
     // Fetch user type from token usage API
@@ -69,6 +71,22 @@ export function UserHomePage() {
         padding: 'var(--spacing-xl)',
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
+            <div style={{ flex: 1 }}></div>
+            <button
+              onClick={() => setShowSupport(true)}
+              className="outline"
+              style={{ 
+                fontSize: '0.875rem',
+                padding: '0.5rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              💬 Contact Support
+            </button>
+          </div>
           <TokenUsage />
           <ArticleProcessor 
             selectedArticleId={selectedArticleId}
@@ -78,6 +96,9 @@ export function UserHomePage() {
           {userType === 'trial' && <PaidPlanBenefits />}
         </div>
       </div>
+      
+      {/* Support Form Modal */}
+      <SupportForm isOpen={showSupport} onClose={() => setShowSupport(false)} />
     </div>
   );
 }

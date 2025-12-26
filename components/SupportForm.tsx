@@ -17,14 +17,73 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{
+    name?: string;
+    email?: string;
+    subject?: string;
+    message?: string;
+  }>({});
 
   if (!isOpen) return null;
 
+  // Email validation function
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Count words in a string
+  const countWords = (text: string): number => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setSuccess(false);
+    setValidationErrors({});
+
+    // Client-side validation
+    const errors: typeof validationErrors = {};
+    let hasErrors = false;
+
+    // Validate name
+    if (!formData.name.trim()) {
+      errors.name = 'Required';
+      hasErrors = true;
+    }
+
+    // Validate email
+    if (!formData.email.trim()) {
+      errors.email = 'Required';
+      hasErrors = true;
+    } else if (!isValidEmail(formData.email)) {
+      errors.email = 'Invalid email address';
+      hasErrors = true;
+    }
+
+    // Validate subject
+    if (!formData.subject.trim()) {
+      errors.subject = 'Required';
+      hasErrors = true;
+    }
+
+    // Validate message - minimum 10 words
+    const wordCount = countWords(formData.message);
+    if (!formData.message.trim()) {
+      errors.message = 'Required';
+      hasErrors = true;
+    } else if (wordCount < 10) {
+      errors.message = 'Message must contain at least 10 words';
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const response = await fetch('/api/support', {
@@ -35,11 +94,14 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || data.message || 'Failed to send message');
+        // Use the detailed message if available, otherwise fall back to error
+        const errorMessage = data.message || data.error || 'Failed to send message';
+        throw new Error(errorMessage);
       }
 
       setSuccess(true);
       setFormData({ name: '', email: '', subject: '', message: '' });
+      setValidationErrors({});
       setTimeout(() => {
         onClose();
         setSuccess(false);
@@ -137,42 +199,83 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
         )}
 
         <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Your Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-            style={{ marginBottom: 'var(--spacing-md)' }}
-            disabled={loading}
-          />
-          <input
-            type="email"
-            placeholder="Your Email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-            style={{ marginBottom: 'var(--spacing-md)' }}
-            disabled={loading}
-          />
-          <input
-            type="text"
-            placeholder="Subject"
-            value={formData.subject}
-            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-            required
-            style={{ marginBottom: 'var(--spacing-md)' }}
-            disabled={loading}
-          />
-          <textarea
-            placeholder="Your Message"
-            value={formData.message}
-            onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-            required
-            rows={6}
-            style={{ marginBottom: 'var(--spacing-lg)' }}
-            disabled={loading}
-          />
+          <div style={{ marginBottom: 'var(--spacing-md)' }}>
+            <input
+              type="text"
+              placeholder="Your Name"
+              value={formData.name}
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (validationErrors.name) setValidationErrors({ ...validationErrors, name: undefined });
+              }}
+              style={{ marginBottom: validationErrors.name ? '0.25rem' : '0' }}
+              disabled={loading}
+            />
+            {validationErrors.name && (
+              <div style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                {validationErrors.name}
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: 'var(--spacing-md)' }}>
+            <input
+              type="email"
+              placeholder="Your Email"
+              value={formData.email}
+              onChange={(e) => {
+                setFormData({ ...formData, email: e.target.value });
+                if (validationErrors.email) setValidationErrors({ ...validationErrors, email: undefined });
+              }}
+              style={{ marginBottom: validationErrors.email ? '0.25rem' : '0' }}
+              disabled={loading}
+            />
+            {validationErrors.email && (
+              <div style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                {validationErrors.email}
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: 'var(--spacing-md)' }}>
+            <input
+              type="text"
+              placeholder="Subject"
+              value={formData.subject}
+              onChange={(e) => {
+                setFormData({ ...formData, subject: e.target.value });
+                if (validationErrors.subject) setValidationErrors({ ...validationErrors, subject: undefined });
+              }}
+              style={{ marginBottom: validationErrors.subject ? '0.25rem' : '0' }}
+              disabled={loading}
+            />
+            {validationErrors.subject && (
+              <div style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                {validationErrors.subject}
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+            <textarea
+              placeholder="Your Message (minimum 10 words)"
+              value={formData.message}
+              onChange={(e) => {
+                setFormData({ ...formData, message: e.target.value });
+                if (validationErrors.message) setValidationErrors({ ...validationErrors, message: undefined });
+              }}
+              rows={6}
+              style={{ marginBottom: validationErrors.message ? '0.25rem' : '0' }}
+              disabled={loading}
+            />
+            {validationErrors.message && (
+              <div style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                {validationErrors.message}
+              </div>
+            )}
+            {!validationErrors.message && formData.message && (
+              <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                {countWords(formData.message)} word{countWords(formData.message) !== 1 ? 's' : ''} (minimum 10 words required)
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
             <button 
               type="button" 
