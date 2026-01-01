@@ -2,7 +2,6 @@ import * as cheerio from 'cheerio';
 
 interface ExtractionResult {
   content: string;
-  title?: string;
   requiresSubscription: boolean;
 }
 
@@ -45,7 +44,6 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
       if (isSubscriptionSite) {
         return {
           content: '',
-          title: undefined,
           requiresSubscription: true,
         };
       }
@@ -54,51 +52,6 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
 
     const html = await response.text();
     const $ = cheerio.load(html);
-
-    // Extract article title
-    let articleTitle: string | undefined;
-    
-    // Try common title selectors (in order of preference)
-    const titleSelectors = [
-      'h1.article-title',
-      'h1.post-title',
-      'h1.entry-title',
-      'article h1',
-      '[role="article"] h1',
-      'h1',
-      'title',
-    ];
-    
-    for (const selector of titleSelectors) {
-      const titleElement = $(selector).first();
-      if (titleElement.length > 0) {
-        articleTitle = titleElement.text().trim();
-        // Clean up title (remove extra whitespace, newlines)
-        articleTitle = articleTitle.replace(/\s+/g, ' ').trim();
-        // Limit title length to 200 characters
-        if (articleTitle.length > 200) {
-          articleTitle = articleTitle.substring(0, 200) + '...';
-        }
-        if (articleTitle.length > 10) { // Only use if title is substantial
-          break;
-        }
-      }
-    }
-    
-    // Fallback to page title if no article title found
-    if (!articleTitle || articleTitle.length < 10) {
-      const pageTitle = $('title').text().trim();
-      if (pageTitle) {
-        // Clean up page title (often has site name, remove common separators)
-        articleTitle = pageTitle
-          .replace(/\s*[-|•]\s*.*$/, '') // Remove site name after separator
-          .replace(/\s+/g, ' ')
-          .trim();
-        if (articleTitle.length > 200) {
-          articleTitle = articleTitle.substring(0, 200) + '...';
-        }
-      }
-    }
 
     // Check for paywall/subscription indicators
     const paywallIndicators = [
@@ -181,7 +134,6 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
 
     return {
       content: content || 'Could not extract content from URL',
-      title: articleTitle,
       requiresSubscription: requiresSubscription || isSubscriptionSite,
     };
   } catch (error) {
@@ -202,7 +154,6 @@ export async function extractContentFromUrl(url: string): Promise<ExtractionResu
       if (isSubscriptionSite) {
         return {
           content: '',
-          title: undefined,
           requiresSubscription: true,
         };
       }

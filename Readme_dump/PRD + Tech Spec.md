@@ -603,3 +603,157 @@ This improves:
 - Log API errors for debugging
 - Monitor subscription detection accuracy
 - Analyze user behavior patterns
+
+###
+Future Roadmap
+Task 1: UI/UX refactor with Tailwind CSS
+Effort level: Medium
+Current state:
+CSS custom properties (variables) with inline styles
+Mixed styling approach across components
+Design system exists but not consistently applied
+Why Medium:
+Migration requires updating all components
+Need to map existing CSS variables to Tailwind config
+Requires testing to ensure visual parity
+Can be done incrementally (component by component)
+Is this the best approach?
+Yes. Tailwind fits well for:
+Faster development with utility classes
+Better component consistency
+Easier responsive design
+Smaller bundle size with purging
+Good ecosystem (components, plugins)
+Considerations:
+Keep existing CSS variables for theming (dark mode)
+Use Tailwind's @apply or config to maintain design tokens
+Consider a component library (shadcn/ui) built on Tailwind
+Task 2: Feature additions
+2a. Language toggle
+Effort level: Medium
+Requirements:
+Update translateToChinese() to accept target language
+Add language selector UI
+Update API schema to store target language
+Update database schema (add target_language column)
+Update prompts for different languages
+Is this the best approach?
+Yes. This is a logical extension.
+Considerations:
+Start with 5–10 common languages
+Consider language-specific prompt tuning
+Store user language preference
+2b. Multi-modal translation (audio)
+Effort level: High
+Requirements:
+Audio transcription (OpenAI Whisper API or similar)
+Audio file upload handling
+Audio processing pipeline
+UI for audio input
+Storage for audio files (optional)
+Error handling for unsupported formats
+Is this the best approach?
+Yes, but consider:
+Start with text-to-speech output (easier)
+Then add speech-to-text input (harder)
+Use OpenAI Whisper API (recommended)
+Consider file size limits and processing time
+Alternative: Start with URL-based audio (YouTube, podcasts) before direct upload.
+2c. Copy/paste audio
+Effort level: High
+Requirements:
+Browser Audio API integration
+Clipboard API for audio data
+Audio format detection and conversion
+Real-time audio processing
+Cross-browser compatibility
+Is this the best approach?
+No. Clipboard audio support is limited and inconsistent. Better alternatives:
+Audio file upload (drag & drop)
+Audio URL input (YouTube, SoundCloud)
+Browser recording (microphone input)
+Recommendation: Implement file upload first, then consider recording.
+2d. Controllable output intensity
+Effort level: Medium–High
+Breakdown:
+Similarity threshold: Medium (requires prompt engineering, similarity metrics)
+Word count control: Low–Medium (prompt constraints, post-processing)
+Keyword protection: Medium (requires keyword detection, prompt modification)
+Is this the best approach?
+Yes, but implement incrementally:
+Word count control (easiest)
+Keyword protection (medium)
+Similarity threshold (hardest, may need embeddings)
+Considerations:
+These are advanced features; validate user demand first
+Similarity threshold may require additional AI models (embeddings)
+2e. Text import/export
+Effort level: Low–Medium
+Requirements:
+File upload (drag & drop or file picker)
+File parsing (TXT, DOCX, PDF, Markdown)
+Export functionality (download as TXT, DOCX, PDF, Markdown)
+UI for import/export buttons
+Is this the best approach?
+Yes. This is straightforward and valuable.
+Considerations:
+Start with TXT and Markdown
+Add DOCX/PDF later (requires libraries like mammoth, pdf-parse)
+Consider file size limits
+2f. Source display
+Effort level: Low
+Requirements:
+Already have source_url in database schema
+Just need to display it in UI
+Add source attribution component
+Is this the best approach?
+Yes. This is a simple display feature.
+Recommended development order
+Phase 1: Foundation (do first)
+Text import/export (Low–Medium)
+Quick win, high value
+Establishes file handling patterns
+No API changes needed
+Source display (Low)
+Very quick
+Improves UX immediately
+Uses existing data
+Phase 2: Core enhancements
+UI/UX refactor with Tailwind (Medium)
+Do before adding many new features
+Makes subsequent UI work faster
+Establishes design system
+Language toggle (Medium)
+High user value
+Requires API changes (do after UI refactor)
+Natural extension of existing functionality
+Phase 3: Advanced features
+Controllable output intensity (Medium–High)
+Start with word count (easiest)
+Then keyword protection
+Similarity threshold last (most complex)
+Multi-modal translation (High)
+Audio file upload first
+Then audio URL support
+Browser recording last
+Copy/paste audio (High) — not recommended
+Skip or defer
+Use file upload instead
+Summary table
+Feature	Effort	Priority	Phase
+Text Import/Export	Low–Medium	High	1
+Source Display	Low	High	1
+UI/UX Tailwind Refactor	Medium	High	2
+Language Toggle	Medium	High	2
+Word Count Control	Low–Medium	Medium	3
+Keyword Protection	Medium	Medium	3
+Audio File Upload	High	Medium	3
+Similarity Threshold	High	Low	3
+Audio URL Support	Medium	Low	3
+Copy/Paste Audio	High	Low	Skip
+Final recommendations
+Start with Phase 1 (import/export + source display) for quick wins
+Then do the Tailwind refactor to speed up future UI work
+Add language toggle as a major feature
+Evaluate user feedback before building advanced features
+Skip clipboard audio; use file upload instead###

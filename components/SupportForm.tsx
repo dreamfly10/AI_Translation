@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SupportFormProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface SupportFormProps {
 }
 
 export function SupportForm({ isOpen, onClose }: SupportFormProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -49,32 +51,32 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
 
     // Validate name
     if (!formData.name.trim()) {
-      errors.name = 'Required';
+      errors.name = t('support.error.required');
       hasErrors = true;
     }
 
     // Validate email
     if (!formData.email.trim()) {
-      errors.email = 'Required';
+      errors.email = t('support.error.required');
       hasErrors = true;
     } else if (!isValidEmail(formData.email)) {
-      errors.email = 'Invalid email address';
+      errors.email = t('support.error.invalidEmail');
       hasErrors = true;
     }
 
     // Validate subject
     if (!formData.subject.trim()) {
-      errors.subject = 'Required';
+      errors.subject = t('support.error.required');
       hasErrors = true;
     }
 
     // Validate message - minimum 10 words
     const wordCount = countWords(formData.message);
     if (!formData.message.trim()) {
-      errors.message = 'Required';
+      errors.message = t('support.error.required');
       hasErrors = true;
     } else if (wordCount < 10) {
-      errors.message = 'Message must contain at least 10 words';
+      errors.message = t('support.error.minWords');
       hasErrors = true;
     }
 
@@ -170,7 +172,7 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
           ×
         </button>
 
-        <h2 style={{ marginBottom: 'var(--spacing-lg)', paddingRight: 'var(--spacing-xl)' }}>Contact Support</h2>
+        <h2 style={{ marginBottom: 'var(--spacing-lg)', paddingRight: 'var(--spacing-xl)' }}>{t('support.title')}</h2>
 
         {success && (
           <div style={{
@@ -181,7 +183,7 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
             marginBottom: 'var(--spacing-lg)',
             border: '1px solid var(--color-success)',
           }}>
-            ✅ Message sent successfully! We'll get back to you soon.
+            {t('support.success')}
           </div>
         )}
 
@@ -202,7 +204,7 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
           <div style={{ marginBottom: 'var(--spacing-md)' }}>
             <input
               type="text"
-              placeholder="Your Name"
+              placeholder={t('support.name')}
               value={formData.name}
               onChange={(e) => {
                 setFormData({ ...formData, name: e.target.value });
@@ -220,7 +222,7 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
           <div style={{ marginBottom: 'var(--spacing-md)' }}>
             <input
               type="email"
-              placeholder="Your Email"
+              placeholder={t('support.email')}
               value={formData.email}
               onChange={(e) => {
                 setFormData({ ...formData, email: e.target.value });
@@ -238,7 +240,7 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
           <div style={{ marginBottom: 'var(--spacing-md)' }}>
             <input
               type="text"
-              placeholder="Subject"
+              placeholder={t('support.subject')}
               value={formData.subject}
               onChange={(e) => {
                 setFormData({ ...formData, subject: e.target.value });
@@ -255,7 +257,7 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
           </div>
           <div style={{ marginBottom: 'var(--spacing-lg)' }}>
             <textarea
-              placeholder="Your Message (minimum 10 words)"
+              placeholder={t('support.message')}
               value={formData.message}
               onChange={(e) => {
                 setFormData({ ...formData, message: e.target.value });
@@ -272,7 +274,7 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
             )}
             {!validationErrors.message && formData.message && (
               <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                {countWords(formData.message)} word{countWords(formData.message) !== 1 ? 's' : ''} (minimum 10 words required)
+                {countWords(formData.message)} {countWords(formData.message) !== 1 ? t('support.wordCount.plural') : t('support.wordCount')} {t('support.wordCount.minimum')}
               </div>
             )}
           </div>
@@ -283,14 +285,14 @@ export function SupportForm({ isOpen, onClose }: SupportFormProps) {
               onClick={onClose}
               disabled={loading}
             >
-              Cancel
+              {t('support.cancel')}
             </button>
             <button 
               type="submit" 
               disabled={loading} 
               className="button primary"
             >
-              {loading ? 'Sending...' : 'Send Message'}
+              {loading ? t('support.sending') : t('support.send')}
             </button>
           </div>
         </form>

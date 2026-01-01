@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { loadStripe } from '@stripe/stripe-js';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export function PaidPlanBenefits() {
+  const { t } = useLanguage();
   const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -59,7 +61,7 @@ export function PaidPlanBenefits() {
 
   return (
     <div id="paid-plan" className="card" style={{ marginTop: 'var(--spacing-lg)' }}>
-      <h2>Paid Plan Benefits</h2>
+      <h2>{t('userhome.paidPlan')} Benefits</h2>
       <ul style={{ lineHeight: '1.8', marginBottom: 'var(--spacing-lg)' }}>
         <li>✅ <strong>100,000 tokens</strong> per month</li>
         <li>✅ <strong>30-day subscription</strong> period</li>
@@ -110,7 +112,7 @@ export function PaidPlanBenefits() {
           fontWeight: 600
         }}
       >
-        {loading ? 'Processing...' : 'Upgrade to Paid Plan'}
+        {loading ? 'Processing...' : t('userhome.upgradeToPaidPlan')}
       </button>
 
       <p style={{ 

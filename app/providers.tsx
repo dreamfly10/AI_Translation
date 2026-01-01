@@ -2,7 +2,6 @@
 
 import { SessionProvider } from 'next-auth/react';
 import { useEffect } from 'react';
-import { AutoSignOut } from '@/components/AutoSignOut';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -58,11 +57,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  return (
-    <SessionProvider>
-      <AutoSignOut />
-      {children}
-    </SessionProvider>
-  );
+  return <SessionProvider>{children}</SessionProvider>;
 }
 

@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { styleArchetypes, StyleArchetype } from '@/lib/prompt-styles';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Article {
   id: string;
   title: string;
   createdAt: string;
-  inputType: 'url' | 'text';
+  inputType: 'url' | 'text' | 'video';
   sourceUrl?: string;
   style?: string;
 }
@@ -24,19 +25,34 @@ interface ArticleHistoryProps {
   onSelectArticle: (articleId: string) => void;
   selectedArticleId?: string | null;
   refreshTrigger?: number;
+  onCollapse?: () => void;
 }
 
-export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrigger }: ArticleHistoryProps) {
+export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrigger, onCollapse }: ArticleHistoryProps) {
+  const { t, language } = useLanguage();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchArticles = async () => {
     try {
+      console.log('[ARTICLE HISTORY] Fetching articles, refreshTrigger:', refreshTrigger);
       setLoading(true);
       setError(null);
       const response = await fetch('/api/articles?limit=50');
       const data = await response.json();
+      
+      console.log('[ARTICLE HISTORY] Fetch response:', {
+        ok: response.ok,
+        error: data.error,
+        articleCount: data.articles?.length || 0,
+        articles: data.articles?.map((a: any) => ({
+          id: a.id,
+          title: a.title?.substring(0, 30),
+          inputType: a.inputType,
+          createdAt: a.createdAt
+        }))
+      });
       
       // Check for specific error types
       if (data.error === 'DATABASE_UNAVAILABLE') {
@@ -62,9 +78,10 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
       // Success - set articles
       setArticles(data.articles || []);
       setError(null);
+      console.log('[ARTICLE HISTORY] Articles set:', data.articles?.length || 0, 'articles');
     } catch (err) {
       // Network or other errors
-      console.error('Error fetching articles:', err);
+      console.error('[ARTICLE HISTORY] Error fetching articles:', err);
       setError('DATABASE_UNAVAILABLE');
       setArticles([]);
     } finally {
@@ -132,21 +149,58 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
       <div style={{
         padding: 'var(--spacing-lg)',
         borderBottom: '1px solid var(--color-border)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 'var(--spacing-sm)'
       }}>
-        <h2 style={{ 
-          margin: 0, 
-          fontSize: '1.125rem', 
-          fontWeight: 600,
-          color: 'var(--color-text-primary)'
-        }}>
-          Article History
-        </h2>
+        <div style={{ flex: 1 }}>
+          <h2 style={{ 
+            margin: 0, 
+            fontSize: '1.125rem', 
+            fontWeight: 600,
+            color: 'var(--color-text-primary)'
+          }}>
+            {t('userhome.articleHistory')}
+          </h2>
+        </div>
+        {onCollapse && (
+          <button
+            onClick={onCollapse}
+            style={{
+              padding: '0.25rem 0.5rem',
+              background: 'transparent',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all var(--transition-base)',
+              minWidth: '24px',
+              height: '24px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--color-background-tertiary)';
+              e.currentTarget.style.borderColor = 'var(--color-border-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+            }}
+            title={language === 'en' ? 'Collapse sidebar' : '收起侧边栏'}
+          >
+            ◀
+          </button>
+        )}
         <p style={{
           margin: 'var(--spacing-xs) 0 0 0',
           fontSize: '0.75rem',
           color: 'var(--color-text-secondary)'
         }}>
-          {loading ? '...' : error === 'DATABASE_UNAVAILABLE' ? 'Unavailable' : `${articles.length} ${articles.length === 1 ? 'article' : 'articles'}`}
+          {loading ? '...' : error === 'DATABASE_UNAVAILABLE' ? 'Unavailable' : articles.length === 0 ? '' : language === 'zh' ? `${articles.length}${t('userhome.article.zh')}` : `${articles.length} ${articles.length === 1 ? t('userhome.article') : t('userhome.articles')}`}
         </p>
       </div>
 
@@ -280,6 +334,12 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
                         <>
                           <span>•</span>
                           <span style={{ fontSize: '0.7rem' }}>🔗</span>
+                        </>
+                      )}
+                      {article.inputType === 'video' && (
+                        <>
+                          <span>•</span>
+                          <span style={{ fontSize: '0.7rem' }}>🎥</span>
                         </>
                       )}
                       {formatStyleDisplay(article.style) && (

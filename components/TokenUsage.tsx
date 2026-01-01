@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -93,6 +94,7 @@ interface TokenUsage {
 }
 
 export function TokenUsage() {
+  const { t } = useLanguage();
   const [usage, setUsage] = useState<TokenUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +156,7 @@ export function TokenUsage() {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem' }}>Token Usage</h3>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>{t('userhome.tokenUsage')}</h3>
           {usage.userType === 'trial' ? (
             <span style={{ 
               padding: '0.25rem 0.5rem',
@@ -177,7 +179,7 @@ export function TokenUsage() {
               fontWeight: 600,
               border: '1px solid #28a745'
             }}>
-              Paid Plan
+              {t('userhome.paidPlan')}
             </span>
           )}
         </div>
@@ -207,7 +209,7 @@ export function TokenUsage() {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
           <span>
-            {usage.tokensUsed.toLocaleString()} / {usage.limit.toLocaleString()} tokens used
+            {usage.tokensUsed.toLocaleString()} / {usage.limit.toLocaleString()} {t('userhome.tokensUsed')}
           </span>
           {usage.userType === 'trial' && (
             <span style={{ color: isExceeded ? 'var(--color-error)' : 'var(--color-text-secondary)' }}>

@@ -5,10 +5,6 @@ import bcrypt from 'bcryptjs';
 import { db } from './db';
 
 export const authOptions: NextAuthOptions = {
-  // Explicitly set the base URL to use NEXTAUTH_URL
-  // This prevents NextAuth from auto-detecting preview deployment URLs on Vercel
-  // Only set if NEXTAUTH_URL is defined (required for production, optional for local dev)
-  ...(process.env.NEXTAUTH_URL ? { url: process.env.NEXTAUTH_URL } : {}),
   providers: [
     CredentialsProvider({
       name: 'Credentials',

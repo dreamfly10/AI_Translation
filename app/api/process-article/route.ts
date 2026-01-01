@@ -5,7 +5,6 @@ import { extractContentFromUrl } from '@/lib/content-extractor';
 import { translateToChinese, generateInsights } from '@/lib/openai';
 import { checkTokenLimit, consumeTokens, calculateTokensUsed } from '@/lib/token-tracker';
 import { StyleArchetype, getDefaultStyle } from '@/lib/prompt-styles';
-import { db } from '@/lib/db';
 import { z } from 'zod';
 
 const processArticleSchema = z.object({
@@ -71,7 +70,6 @@ export async function POST(request: Request) {
     const selectedStyle: StyleArchetype = style || getDefaultStyle();
 
     let articleText: string;
-    let articleTitle: string | undefined;
     let requiresSubscription = false;
 
     // Extract content based on input type
@@ -79,7 +77,6 @@ export async function POST(request: Request) {
       try {
         const result = await extractContentFromUrl(content);
         articleText = result.content;
-        articleTitle = result.title;
         requiresSubscription = result.requiresSubscription;
         
         // If subscription is required (either detected or known site), return early
@@ -187,61 +184,6 @@ export async function POST(request: Request) {
     // Get updated token status
     const updatedTokenStatus = await checkTokenLimit(session.user.id);
 
-    // Generate a title if not already extracted
-    if (!articleTitle) {
-      if (inputType === 'url') {
-        try {
-          const urlObj = new URL(content);
-          articleTitle = urlObj.hostname.replace('www.', '') + ' - ' + content.substring(0, 60);
-        } catch {
-          articleTitle = content.substring(0, 100);
-        }
-      } else {
-        // For text input, use first 100 characters as title
-        articleTitle = articleText.substring(0, 100).replace(/\n/g, ' ').trim();
-        if (articleTitle.length === 100) {
-          articleTitle += '...';
-        }
-      }
-    }
-    
-    // Ensure title is not empty and has reasonable length
-    if (!articleTitle || articleTitle.trim().length === 0) {
-      articleTitle = inputType === 'url' ? 'Article' : 'Text Article';
-    }
-    if (articleTitle.length > 200) {
-      articleTitle = articleTitle.substring(0, 200) + '...';
-    }
-
-    // Save article to database (for both trial and paid users)
-    // If saving fails, we still return the results - article history is a convenience feature
-    let articleId: string | null = null;
-    try {
-      const savedArticle = await db.article.create({
-        userId: session.user.id,
-        title: articleTitle,
-        originalContent: articleText,
-        translatedContent: translation,
-        insights: insights,
-        inputType: inputType,
-        sourceUrl: inputType === 'url' ? content : undefined,
-        style: selectedStyle,
-        tokensUsed: totalTokens,
-      });
-      articleId = savedArticle.id;
-      console.log(`Article saved successfully: ${articleId}`);
-    } catch (error: any) {
-      // Log error but don't fail the request if article saving fails
-      // This allows the app to work even if articles table doesn't exist yet
-      const errorMessage = error?.message || String(error);
-      if (error?.code === '42P01' || errorMessage.includes('does not exist')) {
-        console.warn('Articles table does not exist. Please run the database migration from supabase/articles_schema.sql');
-      } else {
-        console.error('Error saving article to database:', error);
-      }
-      // Continue processing - article history is optional
-    }
-
     return NextResponse.json({
       translation,
       insights,
@@ -251,7 +193,6 @@ export async function POST(request: Request) {
       tokensRemaining: updatedTokenStatus.tokensRemaining,
       tokensTotal: updatedTokenStatus.tokensUsed,
       tokenLimit: updatedTokenStatus.limit,
-      articleId, // Include article ID in response
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
