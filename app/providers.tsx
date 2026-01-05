@@ -2,6 +2,9 @@
 
 import { SessionProvider } from 'next-auth/react';
 import { useEffect } from 'react';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+import { AuthModalProvider } from '@/contexts/AuthModalContext';
+import { SettingsModalProvider } from '@/contexts/SettingsModalContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -57,6 +60,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  return <SessionProvider>{children}</SessionProvider>;
+  return (
+    <SessionProvider>
+      <LanguageProvider>
+        <AuthModalProvider>
+          <SettingsModalProvider>
+            {children}
+          </SettingsModalProvider>
+        </AuthModalProvider>
+      </LanguageProvider>
+    </SessionProvider>
+  );
 }
 
