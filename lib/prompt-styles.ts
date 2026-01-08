@@ -35,8 +35,8 @@ export interface StyleConfig {
 
 export const styleArchetypes: Record<StyleArchetype, StyleConfig> = {
   warmBookish: {
-    name: "温暖书卷风",
-    nameEn: "Warm Bookish",
+    name: "治愈+情感",
+    nameEn: "Emotional Resonance",
     description: "深度阅读+情绪共鸣+长文风格，像十点读书那样陪伴读者",
     tone: '温暖、温和、略带抒情；共情；"陪你读/陪你想"的陪伴感',
     structure: {
@@ -93,7 +93,7 @@ export const styleArchetypes: Record<StyleArchetype, StyleConfig> = {
   },
 
   education: {
-    name: "教育/写作/互联网观察",
+    name: "教育祛魅 + 逻辑拆解",
     nameEn: "Education",
     description: "像玉树芝兰那样提供框架和可教方法；思考但实用",
     tone: '理性、反思、偶尔个人经验；较少煽情、更多"方法论+观察"',
@@ -169,7 +169,9 @@ ${config.avoid.map((a) => `- ${a}`).join("\n")}
 - End with exactly 3 actionable suggestions or thought-provoking questions
 - Make the content engaging and less robotic
 - Vary sentence length for rhythm
-- Use transitions naturally ("后来我发现...", "其实...", "你有没有...")`;
+- Use transitions naturally ("后来我发现...", "其实...", "你有没有...")
+- Do NOT use markdown formatting (no **, __, *, _, #, [], etc.) in your output
+- Write in plain text only`;
 }
 
 /**
@@ -195,7 +197,9 @@ ${chineseTranslation}
 - Write in a natural, engaging style - avoid robotic or formulaic language
 - Use the rhetorical devices and sentence style specified for this archetype
 - Make it feel like a thoughtful human wrote this, not an AI
-- Vary your language and structure throughout`;
+- Vary your language and structure throughout
+- Do NOT use markdown formatting (no **, __, *, _, #, [], etc.) in your output
+- Write in plain text only`;
 }
 
 /**

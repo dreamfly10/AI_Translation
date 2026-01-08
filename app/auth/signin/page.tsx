@@ -118,7 +118,11 @@ function SignInContent() {
             <div style={{ margin: 'var(--spacing-lg) 0', color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>or</div>
             <button
               className="secondary"
-              onClick={() => signIn('google', { callbackUrl })}
+              onClick={() => {
+                // Store callback URL in sessionStorage so we can use it after Google redirect
+                sessionStorage.setItem('googleCallbackUrl', callbackUrl);
+                signIn('google', { callbackUrl });
+              }}
               style={{ width: '100%' }}
             >
               Sign In with Google

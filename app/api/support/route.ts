@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     // Send email using Resend
     const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'AI Translate <onboarding@resend.dev>',
+      from: process.env.RESEND_FROM_EMAIL || 'Expression Copilot <onboarding@resend.dev>',
       to: supportEmail,
       replyTo: email,
       subject: `Support Request: ${subject}`,
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
             <p style="margin: 0; white-space: pre-wrap; line-height: 1.6;">${message.replace(/\n/g, '<br>')}</p>
           </div>
           <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            This email was sent from the AI Translate support form.
+            This email was sent from the Expression Copilot support form.
           </p>
         </div>
       `,

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 export default function RubiksCube() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const clockRef = useRef<THREE.Clock | null>(null);
-  const layersRef = useRef<{ [key: string]: THREE.Group }>({});
+  const layersRef = useRef<{ [key: string]: THREE.Group | THREE.Mesh[] }>({});
   const mouseRef = useRef({ x: 0, y: 0 });
   const spotlightRef = useRef<THREE.SpotLight | null>(null);
   const lightsRef = useRef<{

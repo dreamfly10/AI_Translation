@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ 
+      success: true,
       message: 'Upgraded to paid successfully',
       userType: 'paid',
       tokenLimit: updatedUser.tokenLimit,
@@ -33,8 +34,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Upgrade error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to upgrade', message: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'UPGRADE_ERROR',
+        message: 'Failed to upgrade',
+        userMessage: 'Unable to upgrade your account. Please try again or contact support if the issue persists.',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }

@@ -1,5 +1,5 @@
 {
-  "name": "ai-translation-app",
+  "name": "expression-copilot",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -13,6 +13,7 @@
   "dependencies": {
     "@stripe/stripe-js": "^8.6.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@ybd-project/ytdl-core": "^6.0.8",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.0.0-rc.12",
     "next": "^14.0.0",

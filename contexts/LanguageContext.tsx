@@ -16,10 +16,10 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const translations: Record<Language, Record<string, string>> = {
   en: {
     // Navigation
-    'nav.title': 'AI Translate',
+    'nav.title': 'Expression Copilot',
     
     // Home page
-    'home.hero.title': 'AI Translation & Analysis',
+    'home.hero.title': 'Expression Copilot',
     'home.hero.description': 'Translate articles into any language and generate in-depth insights with AI-powered analysis. Perfect for researchers, content creators, and anyone who needs high-quality translations with contextual understanding.',
     'home.features.lightning': 'Lightning Fast',
     'home.features.lightning.desc': 'Get accurate translations and insights in seconds with our optimized AI processing.',
@@ -37,8 +37,8 @@ const translations: Record<Language, Record<string, string>> = {
     'home.usecases.students': 'Students',
     'home.usecases.students.desc': 'Learn from global content with translations that maintain original meaning and structure.',
     'home.cta.title': 'Ready to Transform Your Content?',
-    'home.cta.description': 'Join users who are already using AI Translate to understand and analyze content in multiple languages.',
-    'footer.copyright': '© 2025 AI Translate. All rights reserved.',
+    'home.cta.description': 'Join users who are already using Expression Copilot to understand and analyze content in multiple languages.',
+    'footer.copyright': '© 2025 Expression Copilot. All rights reserved.',
     'footer.tagline': 'Transforming content with intelligence and precision.',
     
     // User Home Page
@@ -140,10 +140,10 @@ const translations: Record<Language, Record<string, string>> = {
   },
   zh: {
     // Navigation
-    'nav.title': 'AI 翻译',
+    'nav.title': '智能表达助理',
     
     // Home page
-    'home.hero.title': 'AI 翻译与分析',
+    'home.hero.title': '智能表达助理',
     'home.hero.description': '将文章翻译成任何语言，并通过 AI 驱动的分析生成深度见解。非常适合研究人员、内容创作者以及需要高质量翻译和上下文理解的人。',
     'home.features.lightning': '极速处理',
     'home.features.lightning.desc': '通过我们优化的 AI 处理，在几秒钟内获得准确的翻译和见解。',
@@ -161,8 +161,8 @@ const translations: Record<Language, Record<string, string>> = {
     'home.usecases.students': '学生',
     'home.usecases.students.desc': '通过保持原始含义和结构的翻译，从全球内容中学习。',
     'home.cta.title': '准备好转换您的内容了吗？',
-    'home.cta.description': '加入已经在使用 AI 翻译来理解和分析多语言内容的用户。',
-    'footer.copyright': '© 2025 AI 翻译。保留所有权利。',
+    'home.cta.description': '加入已经在使用 智能表达助理 来理解和分析多语言内容的用户。',
+    'footer.copyright': '© 2025 智能表达助理。保留所有权利。',
     'footer.tagline': '用智能和精确转换内容。',
     
     // User Home Page
@@ -267,17 +267,49 @@ const translations: Record<Language, Record<string, string>> = {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
 
-  // Load language from localStorage on mount
-  // Default to English if no saved preference
+  // Load language from localStorage and user preferences on mount
   useEffect(() => {
-    const savedLanguage = localStorage.getItem('language') as Language;
-    if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'zh')) {
-      setLanguageState(savedLanguage);
-    } else {
-      // Ensure default is English
-      setLanguageState('en');
-      localStorage.setItem('language', 'en');
-    }
+    const loadLanguage = async () => {
+      // First, try to load from localStorage (user's manual selection takes priority)
+      const savedLanguage = localStorage.getItem('language') as Language;
+      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'zh')) {
+        setLanguageState(savedLanguage);
+      } else {
+        // If no localStorage preference, try to load from user preferences
+        try {
+          const response = await fetch('/api/user-preferences');
+          if (response.ok) {
+            const data = await response.json();
+            const defaultLang = data.defaultUILanguage || 'en';
+            if (defaultLang === 'en' || defaultLang === 'zh') {
+              setLanguageState(defaultLang);
+              localStorage.setItem('language', defaultLang);
+            } else {
+              setLanguageState('en');
+              localStorage.setItem('language', 'en');
+            }
+          } else {
+            // Fallback to English if API fails
+            setLanguageState('en');
+            localStorage.setItem('language', 'en');
+          }
+        } catch (err) {
+          // Fallback to English if API fails
+          setLanguageState('en');
+          localStorage.setItem('language', 'en');
+        }
+      }
+    };
+    loadLanguage();
+
+    // Listen for preference updates
+    const handlePreferencesUpdate = () => {
+      loadLanguage();
+    };
+    window.addEventListener('preferencesUpdated', handlePreferencesUpdate);
+    return () => {
+      window.removeEventListener('preferencesUpdated', handlePreferencesUpdate);
+    };
   }, []);
 
   // Save language to localStorage when it changes

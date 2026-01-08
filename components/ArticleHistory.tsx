@@ -33,13 +33,16 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalArticles, setTotalArticles] = useState(0);
 
-  const fetchArticles = async () => {
+  const fetchArticles = async (page: number = 1) => {
     try {
-      console.log('[ARTICLE HISTORY] Fetching articles, refreshTrigger:', refreshTrigger);
+      console.log('[ARTICLE HISTORY] Fetching articles, page:', page, 'refreshTrigger:', refreshTrigger);
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/articles?limit=50');
+      const response = await fetch(`/api/articles?limit=10&page=${page}`);
       const data = await response.json();
       
       console.log('[ARTICLE HISTORY] Fetch response:', {
@@ -75,9 +78,14 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
         return;
       }
       
-      // Success - set articles
+      // Success - set articles and pagination info
       setArticles(data.articles || []);
       setError(null);
+      if (data.pagination) {
+        setCurrentPage(data.pagination.page || 1);
+        setTotalPages(data.pagination.totalPages || 1);
+        setTotalArticles(data.pagination.totalArticles || 0);
+      }
       console.log('[ARTICLE HISTORY] Articles set:', data.articles?.length || 0, 'articles');
     } catch (err) {
       // Network or other errors
@@ -90,8 +98,15 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
   };
 
   useEffect(() => {
-    fetchArticles();
+    // Reset to page 1 when refreshTrigger changes
+    if (refreshTrigger !== undefined) {
+      setCurrentPage(1);
+    }
   }, [refreshTrigger]);
+
+  useEffect(() => {
+    fetchArticles(currentPage);
+  }, [currentPage, refreshTrigger]);
 
   const handleDelete = async (articleId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -99,24 +114,21 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
       return;
     }
 
-    try {
-      const response = await fetch(`/api/articles?id=${articleId}`, {
-        method: 'DELETE',
-      });
+    // Soft delete - just remove from UI, don't call API
+    // Remove from local state
+    const updatedArticles = articles.filter(a => a.id !== articleId);
+    setArticles(updatedArticles);
+    setTotalArticles(prev => Math.max(0, prev - 1));
+    
+    // If deleted article was selected, clear selection
+    if (selectedArticleId === articleId) {
+      onSelectArticle('');
+    }
 
-      if (!response.ok) {
-        throw new Error('Failed to delete article');
-      }
-
-      // Remove from local state
-      setArticles(articles.filter(a => a.id !== articleId));
-      
-      // If deleted article was selected, clear selection
-      if (selectedArticleId === articleId) {
-        onSelectArticle('');
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete article');
+    // If current page becomes empty after deletion and we're not on page 1, go to previous page
+    // Check AFTER deletion (updatedArticles.length === 0)
+    if (updatedArticles.length === 0 && currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
     }
   };
 
@@ -163,6 +175,13 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
           }}>
             {t('userhome.articleHistory')}
           </h2>
+          <p style={{
+            margin: 'var(--spacing-xs) 0 0 0',
+            fontSize: '0.75rem',
+            color: 'var(--color-text-secondary)'
+          }}>
+            {loading ? '...' : error === 'DATABASE_UNAVAILABLE' ? 'Unavailable' : totalArticles === 0 ? '' : language === 'zh' ? `${totalArticles}${t('userhome.article.zh')}` : `${totalArticles} ${totalArticles === 1 ? t('userhome.article') : t('userhome.articles')}`}
+          </p>
         </div>
         {onCollapse && (
           <button
@@ -195,13 +214,6 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
             ◀
           </button>
         )}
-        <p style={{
-          margin: 'var(--spacing-xs) 0 0 0',
-          fontSize: '0.75rem',
-          color: 'var(--color-text-secondary)'
-        }}>
-          {loading ? '...' : error === 'DATABASE_UNAVAILABLE' ? 'Unavailable' : articles.length === 0 ? '' : language === 'zh' ? `${articles.length}${t('userhome.article.zh')}` : `${articles.length} ${articles.length === 1 ? t('userhome.article') : t('userhome.articles')}`}
-        </p>
       </div>
 
       <div style={{
@@ -387,6 +399,99 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && error !== 'DATABASE_UNAVAILABLE' && totalArticles > 0 && (
+        <div style={{
+          padding: 'var(--spacing-md)',
+          borderTop: '1px solid var(--color-border)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 'var(--spacing-sm)',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{
+            fontSize: '0.75rem',
+            color: 'var(--color-text-secondary)'
+          }}>
+            {language === 'en' 
+              ? `Page ${currentPage} of ${totalPages} (${totalArticles} total)`
+              : `第 ${currentPage} 页，共 ${totalPages} 页（共 ${totalArticles} 篇）`}
+          </div>
+          <div style={{
+            display: 'flex',
+            gap: 'var(--spacing-xs)',
+            alignItems: 'center'
+          }}>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              style={{
+                padding: '0.25rem 0.5rem',
+                background: currentPage === 1 ? 'transparent' : 'var(--color-background-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: currentPage === 1 ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                fontSize: '0.75rem',
+                transition: 'all var(--transition-base)',
+                opacity: currentPage === 1 ? 0.5 : 1
+              }}
+            >
+              ◀
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    minWidth: '28px',
+                    background: currentPage === pageNum ? 'var(--color-primary)' : 'transparent',
+                    border: `1px solid ${currentPage === pageNum ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    color: currentPage === pageNum ? 'white' : 'var(--color-text-primary)',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    transition: 'all var(--transition-base)'
+                  }}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '0.25rem 0.5rem',
+                background: currentPage === totalPages ? 'transparent' : 'var(--color-background-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: currentPage === totalPages ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                fontSize: '0.75rem',
+                transition: 'all var(--transition-base)',
+                opacity: currentPage === totalPages ? 0.5 : 1
+              }}
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

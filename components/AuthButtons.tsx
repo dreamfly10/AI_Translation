@@ -4,6 +4,7 @@ import { signIn, signOut, getProviders } from 'next-auth/react';
 import { Session } from 'next-auth';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useSettingsModal } from '@/contexts/SettingsModalContext';
 
 interface AuthButtonsProps {
   session: Session | null;
@@ -12,6 +13,7 @@ interface AuthButtonsProps {
 
 export default function AuthButtons({ session, variant }: AuthButtonsProps) {
   const router = useRouter();
+  const { openModal: openSettingsModal } = useSettingsModal();
   const [showRegister, setShowRegister] = useState(false);
   const [registerData, setRegisterData] = useState({
     email: '',
@@ -80,18 +82,79 @@ export default function AuthButtons({ session, variant }: AuthButtonsProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
         <span style={{ 
           color: 'var(--color-text-secondary)', 
-          fontSize: '0.875rem',
-          display: 'none'
-        }}>
-          {session.user?.email || session.user?.name}
-        </span>
-        <span style={{ 
-          color: 'var(--color-text-secondary)', 
-          fontSize: '0.875rem'
+          fontSize: '1.125rem',
+          fontWeight: 500
         }}>
           {session.user?.name || session.user?.email?.split('@')[0]}
         </span>
-        <button className="outline" onClick={() => signOut()}>Sign Out</button>
+        <button 
+          className="outline" 
+          onClick={() => openSettingsModal()}
+          style={{
+            fontSize: '1.5rem',
+            padding: '0.75rem 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '48px',
+            minHeight: '48px'
+          }}
+          title="Settings"
+        >
+          ⚙️
+        </button>
+        <button 
+          className="outline" 
+          onClick={() => signOut()}
+          style={{
+            fontSize: '1.125rem',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 500
+          }}
+        >
+          Sign Out
+        </button>
+      </div>
+    );
+  }
+
+  // For header variant, show only Log In and Get Started
+  if (variant === 'header') {
+    // We'll handle Get Started modal in the parent component (page.tsx)
+    // For now, just show Log In button
+    return (
+      <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+        <button 
+          className="outline"
+          onClick={() => router.push('/auth/signin')}
+          style={{
+            fontSize: '0.875rem',
+            padding: '0.5rem 1rem'
+          }}
+        >
+          Log In
+        </button>
+        <button 
+          onClick={() => {
+            // This will be handled by the parent component
+            // For now, open sign-in page
+            router.push('/auth/signin');
+          }}
+          style={{
+            fontSize: '0.875rem',
+            padding: '0.5rem 1rem',
+            background: 'var(--color-primary)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            cursor: 'pointer'
+          }}
+        >
+          Get Started
+        </button>
       </div>
     );
   }

@@ -1,3 +1,9 @@
+/**
+ * ⚠️ IMPORTANT
+ * Do not refactor or change behavior in this file.
+ * Changes here must be minimal and error-driven only.
+ */
+
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
@@ -102,6 +108,15 @@ export const authOptions: NextAuthOptions = {
       // Use token.id if available (set during signIn via jwt callback)
       if (token.id) {
         (session.user as any).id = token.id as string;
+        // Fetch user from database to get latest name
+        try {
+          const user = await db.user.findById(token.id as string);
+          if (user) {
+            session.user.name = user.name || undefined;
+          }
+        } catch (error) {
+          console.error('Error fetching user in session callback:', error);
+        }
       } else if (token.email || session.user?.email) {
         // Fallback: try to get from database using email from token or session
         try {
@@ -110,6 +125,7 @@ export const authOptions: NextAuthOptions = {
             const user = await db.user.findByEmail(email);
             if (user?.id) {
               (session.user as any).id = user.id;
+              session.user.name = user.name || undefined;
             } else {
               console.warn('User not found in database for email:', email);
             }

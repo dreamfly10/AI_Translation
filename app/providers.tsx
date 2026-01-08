@@ -1,3 +1,16 @@
+/**
+ * ⚠️ IMPORTANT
+ * Do not refactor or change behavior in this file.
+ * Changes here must be minimal and error-driven only.
+ * ⚠️ IMPORTANT: This file wraps all context providers.
+    * If adding new providers, add them here in this order:
+    * 1. SessionProvider (outermost)
+    * 2. LanguageProvider
+    * 3. AuthModalProvider
+    * 4. SettingsModalProvider
+    * See DEPENDENCIES.md for full dependency tree
+ */
+
 'use client';
 
 import { SessionProvider } from 'next-auth/react';

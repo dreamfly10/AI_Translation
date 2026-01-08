@@ -7,6 +7,7 @@ import { PaidPlanBenefits } from '@/components/PaidPlanBenefits';
 import { ArticleHistory } from '@/components/ArticleHistory';
 import { SupportForm } from '@/components/SupportForm';
 import { LanguageToggle } from '@/components/LanguageToggle';
+import { AutoSignOut } from '@/components/AutoSignOut';
 
 export function UserHomePage() {
   const [userType, setUserType] = useState<'trial' | 'paid' | null>(null);
@@ -15,6 +16,7 @@ export function UserHomePage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showSupport, setShowSupport] = useState(false);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const [showLanguageToggle, setShowLanguageToggle] = useState(true);
 
   useEffect(() => {
     // Fetch user type from token usage API
@@ -34,7 +36,30 @@ export function UserHomePage() {
       }
     };
 
+    // Load user preferences
+    const loadPreferences = async () => {
+      try {
+        const response = await fetch('/api/user-preferences');
+        if (response.ok) {
+          const data = await response.json();
+          setShowLanguageToggle(data.showLanguageToggle !== undefined ? data.showLanguageToggle : true);
+        }
+      } catch (error) {
+        console.error('Error loading preferences:', error);
+      }
+    };
+
     fetchUserType();
+    loadPreferences();
+
+    // Listen for preference updates
+    const handlePreferencesUpdate = () => {
+      loadPreferences();
+    };
+    window.addEventListener('preferencesUpdated', handlePreferencesUpdate);
+    return () => {
+      window.removeEventListener('preferencesUpdated', handlePreferencesUpdate);
+    };
   }, []);
 
   const handleArticleSelect = (articleId: string) => {
@@ -62,7 +87,7 @@ export function UserHomePage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 80px)', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ display: 'flex', minHeight: 'calc(100vh - 80px)', position: 'relative' }}>
       {/* Expand Button - shown when sidebar is collapsed */}
       {isHistoryCollapsed && (
         <button
@@ -117,14 +142,13 @@ export function UserHomePage() {
       {/* Main Content */}
       <div style={{ 
         flex: 1, 
-        overflowY: 'auto',
         padding: 'var(--spacing-xl)',
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
             <div style={{ flex: 1 }}></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-              <LanguageToggle />
+              {showLanguageToggle && <LanguageToggle />}
               <button
                 onClick={() => setShowSupport(true)}
                 className="outline"
@@ -152,6 +176,9 @@ export function UserHomePage() {
       
       {/* Support Form Modal */}
       <SupportForm isOpen={showSupport} onClose={() => setShowSupport(false)} />
+      
+      {/* Auto Sign Out Warning */}
+      <AutoSignOut />
     </div>
   );
 }

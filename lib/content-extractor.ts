@@ -1,4 +1,11 @@
+/**
+ * ⚠️ IMPORTANT
+ * Do not refactor or change behavior in this file.
+ * Changes here must be minimal and error-driven only.
+ */
+
 import * as cheerio from 'cheerio';
+import { transcribeYouTubeVideo, isYouTubeUrl } from './youtube-transcript';
 
 interface ExtractionResult {
   content: string;
@@ -28,9 +35,32 @@ function isKnownSubscriptionSite(url: string): boolean {
   }
 }
 
-export async function extractContentFromUrl(url: string): Promise<ExtractionResult> {
+export async function extractContentFromUrl(url: string, onProgress?: (message: string) => void): Promise<ExtractionResult> {
+  // Check if it's a YouTube URL
+  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+  
   // Check if it's a known subscription site first
   const isSubscriptionSite = isKnownSubscriptionSite(url);
+  
+  // Handle YouTube videos with Whisper transcription
+  if (isYouTube) {
+    try {
+      onProgress?.('Processing YouTube video...');
+      const transcript = await transcribeYouTubeVideo(url, onProgress);
+      
+      if (!transcript || transcript.trim().length === 0) {
+        throw new Error('Failed to extract transcript from YouTube video');
+      }
+      
+      return {
+        content: transcript,
+        requiresSubscription: false,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`YouTube video processing failed: ${errorMessage}`);
+    }
+  }
   
   try {
     const response = await fetch(url, {

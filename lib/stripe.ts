@@ -35,3 +35,14 @@ if (STRIPE_PRICE_ID && !STRIPE_PRICE_ID.startsWith('price_')) {
   console.warn('Warning: STRIPE_PRICE_ID does not start with price_');
 }
 
+// Price IDs for token purchases (one-time payments)
+export const STRIPE_PRICE_ID_10K = process.env.STRIPE_TOKEN_10K_PRICE_ID || '';
+export const STRIPE_PRICE_ID_50K = process.env.STRIPE_TOKEN_50K_PRICE_ID || '';
+
+// Validate token price IDs if set
+if (STRIPE_PRICE_ID_10K && !STRIPE_PRICE_ID_10K.startsWith('price_')) {
+  console.warn('Warning: STRIPE_PRICE_ID_10K does not start with price_');
+}
+if (STRIPE_PRICE_ID_50K && !STRIPE_PRICE_ID_50K.startsWith('price_')) {
+  console.warn('Warning: STRIPE_PRICE_ID_50K does not start with price_');
+}

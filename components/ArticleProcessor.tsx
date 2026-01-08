@@ -7,6 +7,7 @@ import { StyleArchetype, RewritingLevel, styleArchetypes, getDefaultStyle } from
 import { getSession } from 'next-auth/react';
 import { exportContent, ExportFormat } from '@/lib/export-utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useSettingsModal } from '@/contexts/SettingsModalContext';
 
 interface ProcessResult {
   translation: string;
@@ -23,15 +24,20 @@ interface ArticleProcessorProps {
 
 export default function ArticleProcessor({ selectedArticleId, onArticleProcessed }: ArticleProcessorProps) {
   const { t, language } = useLanguage();
+  const { openModal: openSettingsModal } = useSettingsModal();
   const [inputType, setInputType] = useState<'url' | 'text' | 'video'>('url');
   const [content, setContent] = useState('');
   const [style, setStyle] = useState<StyleArchetype>(getDefaultStyle());
+  const [voiceProfileId, setVoiceProfileId] = useState<string | null>(null);
+  const [voiceProfiles, setVoiceProfiles] = useState<any[]>([]);
   const [rewritingLevel, setRewritingLevel] = useState<RewritingLevel>('medium');
+  const [targetLanguage, setTargetLanguage] = useState<string>('zh');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ProcessResult | null>(null);
   const [error, setError] = useState<AppError | null>(null);
   const [subscriptionUrl, setSubscriptionUrl] = useState<string | null>(null);
   const [loadingArticle, setLoadingArticle] = useState(false);
+  const [formatError, setFormatError] = useState<string | null>(null);
   
   // Streaming states
   const [streamingTranslation, setStreamingTranslation] = useState('');
@@ -51,6 +57,91 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
   const [translationCollapsed, setTranslationCollapsed] = useState(false);
   const [insightsCollapsed, setInsightsCollapsed] = useState(false);
 
+  // Fetch voice profiles on mount and when profiles are updated
+  useEffect(() => {
+    const fetchVoiceProfiles = async () => {
+      try {
+        const response = await fetch('/api/voice-profiles');
+        if (response.ok) {
+          const data = await response.json();
+          setVoiceProfiles(data.profiles || []);
+        }
+      } catch (err) {
+        console.error('Error fetching voice profiles:', err);
+      }
+    };
+
+    fetchVoiceProfiles();
+
+    // Listen for profile updates
+    const handleProfileUpdate = () => {
+      fetchVoiceProfiles().then(() => {
+        // Check if currently selected profile still exists
+        if (voiceProfileId) {
+          fetch('/api/voice-profiles')
+            .then(res => res.json())
+            .then(data => {
+              const profiles = data.profiles || [];
+              const profileExists = profiles.some((p: any) => p.id === voiceProfileId);
+              if (!profileExists) {
+                // Profile was deleted, clear selection
+                setVoiceProfileId(null);
+                setStyle(getDefaultStyle());
+              }
+            })
+            .catch(err => console.error('Error checking profile existence:', err));
+        }
+      });
+    };
+
+    window.addEventListener('voiceProfileUpdated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('voiceProfileUpdated', handleProfileUpdate);
+    };
+  }, [voiceProfileId]);
+
+  // Load user preferences on mount
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const response = await fetch('/api/user-preferences');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.defaultWritingStyle) {
+            setStyle(data.defaultWritingStyle as StyleArchetype);
+          }
+          if (data.defaultExpressionVariation) {
+            setRewritingLevel(data.defaultExpressionVariation as RewritingLevel);
+          }
+          if (data.defaultTargetLanguage) {
+            setTargetLanguage(data.defaultTargetLanguage);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading preferences:', err);
+      }
+    };
+    loadPreferences();
+
+    // Listen for preference updates
+    const handlePreferencesUpdate = () => {
+      loadPreferences();
+    };
+    window.addEventListener('preferencesUpdated', handlePreferencesUpdate);
+    return () => {
+      window.removeEventListener('preferencesUpdated', handlePreferencesUpdate);
+    };
+  }, []);
+
+  // Clear content when switching input types
+  useEffect(() => {
+    // Only clear if not loading an article
+    if (!loadingArticle && !selectedArticleId) {
+      setContent('');
+      setFormatError(null);
+    }
+  }, [inputType]);
+
   // Load article when selectedArticleId changes
   useEffect(() => {
     if (selectedArticleId) {
@@ -60,6 +151,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       setResult(null);
       setContent('');
       setError(null);
+      setFormatError(null);
     }
   }, [selectedArticleId]);
 
@@ -157,7 +249,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
   const handleExport = async (content: string, format: ExportFormat, title: string) => {
     try {
       const filename = title.replace(/[^a-z0-9\u4e00-\u9fa5]/gi, '_');
-      await exportContent(content, format, filename, title);
+      await exportContent(content, format);
     } catch (error) {
       console.error('Export error:', error);
       setError({
@@ -186,6 +278,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       setContent(article.inputType === 'url' || article.inputType === 'video' ? (article.sourceUrl || '') : article.originalContent);
       setStyle(article.style || getDefaultStyle());
       setRewritingLevel('medium'); // Default rewriting level for loaded articles
+      setTargetLanguage(article.targetLanguage || 'zh'); // Restore target language
       
       // Set result to display translation and insights
       // Clean insights to remove markdown headers
@@ -209,10 +302,64 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
     }
   };
 
+  // Validate content format based on input type
+  const validateContent = (): boolean => {
+    setFormatError(null);
+    
+    if (!content || content.trim().length === 0) {
+      setFormatError('Please enter some content to process');
+      return false;
+    }
+
+    if (inputType === 'text') {
+      // Check if user pasted a URL in Raw Text
+      const urlPattern = /^https?:\/\/.+/i;
+      if (urlPattern.test(content.trim())) {
+        setFormatError('This looks like a URL. Please use the "URL" tab for URLs, or paste the article text content here.');
+        return false;
+      }
+      
+      // Check minimum length for text
+      if (content.trim().length < 50) {
+        setFormatError('Please provide at least 50 characters of text to process');
+        return false;
+      }
+    } else if (inputType === 'url' || inputType === 'video') {
+      // Validate URL format
+      const trimmedContent = content.trim();
+      try {
+        new URL(trimmedContent);
+      } catch {
+        setFormatError('Please enter a valid URL (e.g., https://example.com/article)');
+        return false;
+      }
+      
+      // Additional validation: ensure it's http/https
+      if (!trimmedContent.startsWith('http://') && !trimmedContent.startsWith('https://')) {
+        setFormatError('URL must start with http:// or https://');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (loading) {
+      return;
+    }
+    
+    // Validate content format first
+    if (!validateContent()) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setFormatError(null);
     setResult(null);
     setSubscriptionUrl(null);
     setStreamingTranslation('');
@@ -222,6 +369,11 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
     setEstimatedTime(null);
     setTimeRemaining(null);
 
+    // Declare variables outside try block so they're accessible in catch
+    let timeoutCheck: NodeJS.Timeout | null = null;
+    let isProcessing = true;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
     try {
       const response = await fetch('/api/process-article-stream', {
         method: 'POST',
@@ -230,9 +382,11 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         },
         body: JSON.stringify({
           inputType,
-          content,
-          style,
+          content: content.trim(),
+          style: voiceProfileId ? undefined : style, // Only send style if no voice profile
           rewritingLevel,
+          voiceProfileId: voiceProfileId || undefined,
+          targetLanguage: targetLanguage || 'zh',
         }),
       });
 
@@ -258,7 +412,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       }
 
       // Handle Server-Sent Events stream
-      const reader = response.body?.getReader();
+      reader = response.body?.getReader() || null;
       const decoder = new TextDecoder();
 
       if (!reader) {
@@ -270,20 +424,38 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       let lastUpdateTime = Date.now();
       const TIMEOUT = 15 * 60 * 1000; // 15 minutes timeout
 
-      // Set up timeout check
-      const timeoutCheck = setInterval(() => {
+      // Set up timeout check only when actively processing
+      timeoutCheck = setInterval(() => {
+        // Check timeout using local state, not closure state
+        if (!isProcessing) {
+          if (timeoutCheck) {
+            clearInterval(timeoutCheck);
+            timeoutCheck = null;
+          }
+          return;
+        }
+        
         if (Date.now() - lastUpdateTime > TIMEOUT) {
           console.error('Stream timeout - no updates for 15 minutes');
           setError({
             code: 'TIMEOUT',
             message: 'Processing took too long',
-            userMessage: 'The processing is taking longer than expected. Please try again or use a shorter video.',
-            actionable: 'Try a shorter video or check your internet connection',
+            userMessage: 'The processing is taking longer than expected. Please try again or use a shorter article.',
+            actionable: 'Try a shorter article or check your internet connection',
             statusCode: 408,
           });
           setLoading(false);
-          reader.cancel();
-          clearInterval(timeoutCheck);
+          // Cancel reader (fire-and-forget, as setInterval callback can't be async)
+          if (reader) {
+            reader.cancel().catch((err) => {
+              // Reader may already be closed, ignore error
+              console.log('Reader cancel error (ignored):', err);
+            });
+          }
+          if (timeoutCheck) {
+            clearInterval(timeoutCheck);
+            timeoutCheck = null;
+          }
         }
       }, 30000); // Check every 30 seconds
 
@@ -292,11 +464,14 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         
         if (done) {
           console.log('Stream ended');
-          clearInterval(timeoutCheck);
+          if (timeoutCheck) {
+            clearInterval(timeoutCheck);
+            timeoutCheck = null;
+          }
           break;
         }
 
-        lastUpdateTime = Date.now(); // Update last activity time
+        lastUpdateTime = Date.now(); // Update last activity time when we receive data
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -365,6 +540,17 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 setProgress(100);
                 setEstimatedTime(null);
                 setTimeRemaining(null);
+                isProcessing = false; // Mark processing as complete
+                if (timeoutCheck) {
+                  clearInterval(timeoutCheck);
+                  timeoutCheck = null;
+                }
+                // Cancel reader - stream is complete
+                try {
+                  await reader.cancel();
+                } catch (err) {
+                  // Reader may already be closed, ignore error
+                }
                 
                 if (data.articleId) {
                   console.log('Article saved with ID:', data.articleId);
@@ -403,12 +589,23 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 } else {
                   setError(parsedError);
                 }
+                isProcessing = false; // Mark processing as stopped
                 setLoading(false);
                 setStreamingTranslation('');
                 setStreamingInsights('');
                 setCurrentStage('');
                 setEstimatedTime(null);
                 setTimeRemaining(null);
+                if (timeoutCheck) {
+                  clearInterval(timeoutCheck);
+                  timeoutCheck = null;
+                }
+                // Cancel reader on error
+                try {
+                  await reader.cancel();
+                } catch (err) {
+                  // Reader may already be closed, ignore error
+                }
                 return;
               }
             } catch (parseError) {
@@ -418,7 +615,16 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         }
       }
 
-      clearInterval(timeoutCheck);
+      if (timeoutCheck) {
+        clearInterval(timeoutCheck);
+        timeoutCheck = null;
+      }
+      // Cancel reader if still active
+      try {
+        await reader.cancel();
+      } catch (err) {
+        // Reader may already be closed, ignore error
+      }
       setLoading(false);
     } catch (err) {
       console.error('Process article error:', err);
@@ -430,6 +636,16 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       setCurrentStage('');
       setEstimatedTime(null);
       setTimeRemaining(null);
+      // Cleanup on error
+      if (timeoutCheck) {
+        clearInterval(timeoutCheck);
+        timeoutCheck = null;
+      }
+      try {
+        if (reader) await reader.cancel();
+      } catch (cancelErr) {
+        // Reader may already be closed, ignore error
+      }
     }
   };
 
@@ -562,42 +778,170 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         </div>
 
         {inputType === 'url' ? (
-          <input
-            type="url"
-            placeholder={t('processor.input.placeholder.url')}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-          />
+          <>
+            <input
+              type="url"
+              placeholder={t('processor.input.placeholder.url')}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                // Clear format error when user starts typing
+                if (formatError) {
+                  setFormatError(null);
+                }
+              }}
+              required
+              style={{
+                borderColor: formatError ? 'var(--color-error)' : undefined
+              }}
+            />
+            {formatError && (
+              <div style={{
+                marginTop: 'var(--spacing-xs)',
+                fontSize: '0.875rem',
+                color: 'var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs)'
+              }}>
+                <span>❌</span>
+                <span>{formatError}</span>
+              </div>
+            )}
+          </>
         ) : inputType === 'video' ? (
-          <input
-            type="url"
-            placeholder={t('processor.input.placeholder.video')}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-          />
+          <>
+            <input
+              type="url"
+              placeholder={t('processor.input.placeholder.video')}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                // Clear format error when user starts typing
+                if (formatError) {
+                  setFormatError(null);
+                }
+              }}
+              required
+              style={{
+                borderColor: formatError ? 'var(--color-error)' : undefined
+              }}
+            />
+            {formatError && (
+              <div style={{
+                marginTop: 'var(--spacing-xs)',
+                fontSize: '0.875rem',
+                color: 'var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs)'
+              }}>
+                <span>❌</span>
+                <span>{formatError}</span>
+              </div>
+            )}
+          </>
         ) : (
-          <textarea
-            placeholder={t('processor.input.placeholder.text')}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-          />
+          <>
+            <textarea
+              placeholder={t('processor.input.placeholder.text')}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                // Clear format error when user starts typing
+                if (formatError) {
+                  setFormatError(null);
+                }
+              }}
+              required
+              style={{
+                borderColor: formatError ? 'var(--color-error)' : undefined
+              }}
+            />
+            {formatError && (
+              <div style={{
+                marginTop: 'var(--spacing-xs)',
+                fontSize: '0.875rem',
+                color: 'var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs)'
+              }}>
+                <span>❌</span>
+                <span>{formatError}</span>
+              </div>
+            )}
+          </>
         )}
 
         <div style={{ marginTop: 'var(--spacing-md)' }}>
-          <label style={{ 
-            display: 'block',
-            marginBottom: 'var(--spacing-sm)',
-            fontWeight: 500,
-            color: 'var(--color-text-primary)'
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 'var(--spacing-md)',
+            marginBottom: 'var(--spacing-sm)'
           }}>
-            {t('processor.style.label')}
-          </label>
+            <label style={{ 
+              display: 'block',
+              flex: 1,
+              fontWeight: 500,
+              color: 'var(--color-text-primary)'
+            }}>
+              {t('processor.style.label')}
+            </label>
+            <button
+              type="button"
+              onClick={() => openSettingsModal('voiceProfile')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'var(--color-background-secondary)',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all var(--transition-base)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-background-tertiary)';
+                e.currentTarget.style.borderColor = 'var(--color-border-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-background-secondary)';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            >
+              + {language === 'en' ? 'Custom Author Profile' : '自定义作者档案'}
+            </button>
+          </div>
           <select
-            value={style}
-            onChange={(e) => setStyle(e.target.value as StyleArchetype)}
+            value={voiceProfileId ? `voice_${voiceProfileId}` : style}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value.startsWith('voice_')) {
+                const profileId = value.replace('voice_', '');
+                // Verify profile exists before setting
+                const profileExists = voiceProfiles.some(p => p.id === profileId);
+                if (profileExists) {
+                  setVoiceProfileId(profileId);
+                  setStyle(getDefaultStyle()); // Reset to default when using voice profile
+                } else {
+                  // Profile doesn't exist, reset to default style
+                  setVoiceProfileId(null);
+                  setStyle(getDefaultStyle());
+                  setError({
+                    code: 'VOICE_PROFILE_NOT_FOUND',
+                    message: 'Selected author profile no longer exists',
+                    userMessage: 'The selected author profile was deleted. Please select a different profile.',
+                    statusCode: 404,
+                  });
+                }
+              } else {
+                setVoiceProfileId(null);
+                setStyle(value as StyleArchetype);
+              }
+            }}
             style={{
               width: '100%',
               padding: '0.75rem 1rem',
@@ -614,16 +958,16 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 {language === 'en' ? config.nameEn : config.name}
               </option>
             ))}
+            {voiceProfiles.length > 0 && (
+              <optgroup label={language === 'en' ? 'Author Profile' : '作者档案'}>
+                {voiceProfiles.map((profile) => (
+                  <option key={profile.id} value={`voice_${profile.id}`}>
+                    🎤 {profile.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
-          {style !== 'warmBookish' && style !== 'lifeReflection' && style !== 'contrarian' && style !== 'science' && style !== 'education' && (
-            <p style={{ 
-              fontSize: '0.875rem', 
-              color: 'var(--color-text-secondary)',
-              marginTop: 'var(--spacing-xs)'
-            }}>
-              {styleArchetypes[style].description}
-            </p>
-          )}
         </div>
 
         <div style={{ marginTop: 'var(--spacing-md)' }}>
@@ -652,6 +996,43 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             <option value="light">{t('processor.rewritingLevel.light')}</option>
             <option value="medium">{t('processor.rewritingLevel.medium')}</option>
             <option value="heavy">{t('processor.rewritingLevel.heavy')}</option>
+          </select>
+        </div>
+
+        <div style={{ marginTop: 'var(--spacing-md)' }}>
+          <label style={{ 
+            display: 'block',
+            marginBottom: 'var(--spacing-sm)',
+            fontWeight: 500,
+            color: 'var(--color-text-primary)'
+          }}>
+            {language === 'en' ? 'Language Selection' : '语言选择'}
+          </label>
+          <select
+            value={targetLanguage}
+            onChange={(e) => setTargetLanguage(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.75rem 1rem',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '1rem',
+              background: 'var(--color-background)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="zh">{language === 'en' ? 'Simplified Chinese' : '简体中文'}</option>
+            <option value="en">English</option>
+            <option value="es">Español (Spanish)</option>
+            <option value="fr">Français (French)</option>
+            <option value="de">Deutsch (German)</option>
+            <option value="ja">日本語 (Japanese)</option>
+            <option value="ko">한국어 (Korean)</option>
+            <option value="pt">Português (Portuguese)</option>
+            <option value="it">Italiano (Italian)</option>
+            <option value="ru">Русский (Russian)</option>
+            <option value="ar">العربية (Arabic)</option>
           </select>
         </div>
 
@@ -704,7 +1085,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
 
         <button 
           type="submit" 
-          disabled={loading} 
+          disabled={loading || !!formatError} 
           style={{ 
             marginTop: 'var(--spacing-xl)',
             width: '100%',
@@ -722,7 +1103,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             boxShadow: loading 
               ? 'none' 
               : '0 4px 12px rgba(99, 102, 241, 0.4)',
-            opacity: loading ? 0.6 : 1
+            opacity: (loading || formatError) ? 0.6 : 1
           }}
           onMouseEnter={(e) => {
             if (!loading) {

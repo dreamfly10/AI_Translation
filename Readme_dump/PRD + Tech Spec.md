@@ -1,52 +1,134 @@
-# AI Article Translation & Insight App
+# Expression Copilot - PRD & Technical Specification
 
 ## Quick Summary
 
-A modern web application that translates articles to Chinese and generates insights using OpenAI. Features include:
+**Expression Copilot** (智能表达助理) is a modern, AI-powered web application that translates articles into multiple languages and generates personalized insights using advanced AI models. The application features a comprehensive user management system, progressive rendering, multi-language support, and personalized content generation.
 
-- ✅ **Token-based Usage**: Trial users get 1,000 tokens, enforced strictly
-- ✅ **Subscription Detection**: Automatically detects paywalled content with guided workflow
-- ✅ **Error Handling**: User-friendly error messages with actionable guidance
-- ✅ **Modern UI**: Responsive design with gradient effects and smooth animations
-- ✅ **Optional Google Auth**: Works with or without Google OAuth
-- ✅ **Supabase Integration**: PostgreSQL database with proper RLS configuration
-- ✅ **Stripe Payment Integration**: Secure payment processing with Stripe Checkout
+### Key Features
+
+- ✅ **Multi-Language Translation**: Supports 11 target languages (Chinese, English, Spanish, French, German, Japanese, Korean, Portuguese, Italian, Russian, Arabic)
+- ✅ **Progressive Rendering**: Real-time streaming of translation and insights using Server-Sent Events (SSE)
+- ✅ **Author Profile System**: Personalized content generation based on user's writing samples
+- ✅ **Token-based Usage**: Trial users get 1,000 tokens, paid users get 1,000,000 tokens/month
+- ✅ **Expression Variation**: Three levels (Light, Medium, Heavy) for controlling output intensity
+- ✅ **5 Writing Styles**: Warm Bookish, Life Reflection, Contrarian, Education, Science
+- ✅ **User Preferences**: Customizable defaults for writing style, expression variation, target language, and UI language
+- ✅ **Payment System**: Stripe integration with subscription management, payment history, and billing portal
+- ✅ **Article History**: Paginated article history with soft delete functionality
+- ✅ **Auto Sign-Out**: Automatic session timeout after inactivity
+- ✅ **Subscription Detection**: Intelligent detection of paywalled content with guided workflow
+- ✅ **Error Handling**: Comprehensive error handling with user-friendly messages
+- ✅ **Modern UI**: Responsive design with language toggle, dark/light theme support
 
 ## Overview
 
-This application allows users to input an article link or raw text, automatically translate it into Chinese, and generate in-depth interpretation and insights using the OpenAI API. The app features a modern, user-friendly interface with comprehensive error handling, token-based usage tracking, and intelligent subscription detection for paywalled content.
+Expression Copilot allows users to input article URLs or raw text, automatically translate them into any of 11 supported languages, and generate in-depth interpretations and insights using OpenAI's GPT-4o models. The app features personalized content generation through Author Profiles, real-time streaming updates, and a comprehensive user management system with payment processing.
 
 ## Core Capabilities
 
-- **User Authentication**: Email/Password registration with optional Google SSO
-- **Article Processing**: URL extraction or direct text input
-- **High-Quality Translation**: AI-powered translation to Simplified Chinese
-- **Contextual Insights**: In-depth analysis and interpretation for Chinese-speaking audiences with multiple writing style options
-- **Token Management**: Usage tracking with trial (1,000 tokens) and paid tiers
-- **Payment Processing**: Stripe Checkout integration for secure subscription payments
-- **Subscription Detection**: Automatic detection of paywalled content with guided workflow
-- **Error Handling**: User-friendly error messages with actionable guidance
-- **Modern UI**: Responsive design with gradient effects and smooth animations
-- **Style System**: 5 writing style archetypes for natural, engaging insights (warm bookish, life reflection, contrarian, education, science) 
+### 1. Multi-Modal Content Processing
+- **URL Input**: Extract content from web articles
+- **Raw Text Input**: Direct text processing with format validation
+- **Video Input**: YouTube video support with automatic transcript extraction using OpenAI Whisper
+  - Supports videos up to 2 hours in length
+  - Automatic audio extraction and transcription
+  - Handles various YouTube URL formats (youtube.com, youtu.be, embed URLs)
+- **Content Validation**: Automatic format checking and error prevention
+
+### 2. Multi-Language Translation
+- **11 Target Languages**: Chinese (Simplified), English, Spanish, French, German, Japanese, Korean, Portuguese, Italian, Russian, Arabic
+- **High-Quality Translation**: GPT-4o-mini for accurate, context-aware translations
+- **Language Selection**: User-selectable target language with preference saving
+- **Markdown-Free Output**: Clean text output without formatting artifacts
+
+### 3. Personalized Content Generation
+- **Author Profile System**: Upload 3-10 writing samples (200-800 words each)
+- **Style Extraction**: AI-powered analysis of writing patterns, tone, and structure
+- **Dynamic Injection**: Representative samples and style rules injected into generation prompts
+- **Voice Quality**: Content generated in user's personal voice, not generic AI
+
+### 4. Writing Style System
+- **5 Predefined Styles**:
+  1. **Emotional Resonance (治愈+情感)**: Warm, empathetic, longform style
+  2. **Life Reflection (人生思考+实用智慧)**: Practical wisdom with clear structure
+  3. **Contrarian (反直觉评论+犀利逻辑)**: Sharp, logical, contrarian viewpoints
+  4. **Education (教育祛魅 + 逻辑拆解)**: Methodological, framework-based thinking
+  5. **Science (科学解释+怀疑思维)**: Precise, evidence-based, skeptical analysis
+- **Expression Variation**: Three levels (Light, Medium, Heavy) controlling rewriting intensity
+- **Temperature Control**: Optimized temperature settings per style (0.7-0.85)
+
+### 5. User Management
+- **Authentication**: Email/Password with optional Google OAuth
+- **Trial Users**: 1,000 tokens with strict enforcement
+- **Paid Users**: 1,000,000 tokens/month with subscription management
+- **Auto Sign-Out**: Configurable inactivity timeout
+- **User Preferences**: Saved defaults for all settings
+
+### 6. Payment & Subscription
+- **Stripe Integration**: Secure payment processing
+- **Subscription Management**: Active, expired, cancelled states
+- **Payment History**: Complete invoice history with download links
+- **Billing Portal**: Self-service payment method management
+- **Subscription Cancellation**: One-click cancellation with confirmation
+
+### 7. Article Management
+- **Article History**: Paginated list (10 articles per page)
+- **Soft Delete**: UI-only deletion preserving database records
+- **Article Loading**: Load and re-process saved articles
+- **Metadata Storage**: Title, source URL, style, target language, tokens used
+
+### 8. Progressive Rendering & Real-Time Updates
+- **Server-Sent Events (SSE)**: Real-time streaming of processing updates
+- **Progress Tracking**: Visual progress bars and time estimates
+- **Chunked Updates**: Translation and insights streamed as they're generated
+- **Error Recovery**: Graceful handling of connection issues
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 with React, TypeScript
-- **Backend**: Next.js API routes
-- **Authentication**: NextAuth.js (Email/Password + optional Google OAuth)
-- **AI**: OpenAI API (GPT-4o-mini for translation, GPT-4o for insights)
-- **Database**: Supabase (PostgreSQL with Row Level Security)
-- **Styling**: Modern CSS with design system (CSS variables, gradients, responsive)
-- **Infra**: Vercel-ready
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **UI Library**: React 18
+- **Styling**: CSS Variables with design system
+- **State Management**: React Context API
+- **Real-Time**: Server-Sent Events (SSE)
+
+### Backend
+- **API**: Next.js API Routes
+- **Authentication**: NextAuth.js v4
+- **Validation**: Zod schema validation
+- **Streaming**: ReadableStream API with SSE
+
+### AI & Processing
+- **Translation**: OpenAI GPT-4o-mini
+- **Insights**: OpenAI GPT-4o
+- **Content Extraction**: Cheerio (HTML parsing)
+- **Video Transcription**: OpenAI Whisper API for YouTube video transcript extraction
+- **YouTube Processing**: ytdl-core for audio extraction from YouTube videos
+
+### Database
+- **Platform**: Supabase (PostgreSQL)
+- **Security**: Row Level Security (RLS)
+- **ORM**: Direct Supabase client queries
+- **Migrations**: SQL migration files
+
+### Payment
+- **Provider**: Stripe
+- **Features**: Checkout Sessions, Billing Portal, Webhooks, Invoices
+
+### Infrastructure
+- **Hosting**: Vercel
+- **Environment**: Node.js runtime
+- **Build**: Next.js production builds
 
 ## High-Level Architecture
 
 ```
 User Authentication (NextAuth)
    ↓
-Token Limit Check (Trial: 1,000 tokens)
+Token Limit Check (Trial: 1,000 / Paid: 1,000,000)
    ↓
-User Input (URL or Text)
+User Input (URL, Text, or Video)
    ↓
 Content Extraction / Subscription Detection
    ↓
@@ -56,149 +138,400 @@ Show Subscription Workflow Component
    ↓
 [User Pastes Content]
    ↓
-Token Estimation & Validation
+Token Estimation & Pre-Validation
    ↓
-OpenAI Translation (GPT-4o-mini)
+OpenAI Translation (GPT-4o-mini) → Streamed via SSE
    ↓
-OpenAI Insight Generation (GPT-4o)
+OpenAI Insight Generation (GPT-4o) → Streamed via SSE
    ↓
-Token Consumption & Update
+Article Save to Database
    ↓
-Result Rendering with Error Handling
+Token Consumption (After Successful Save)
+   ↓
+Result Rendering with Progressive Updates
 ```
 
 ## User Flow
 
-### Standard Flow
-1. User signs up or signs in (Email/Password or optional Google SSO)
-2. System checks token availability (Trial: 1,000 tokens)
+### Standard Processing Flow
+1. User signs up or signs in (Email/Password or Google SSO)
+2. System checks token availability and subscription status
 3. User pastes article URL or raw text
-4. System extracts and validates content
+4. System validates input format (URL validation, text length checks)
 5. If subscription required → Show subscription workflow
-6. System estimates token usage and validates availability
-7. User selects writing style (optional, defaults to "warm bookish")
-8. System translates content into Chinese (GPT-4o-mini)
-9. System generates insights and interpretation (GPT-4o) using selected style
-10. System consumes tokens and updates usage
-11. User views translation and insights
+6. User selects:
+   - Writing Style (or Author Profile)
+   - Expression Variation (Light/Medium/Heavy)
+   - Target Language (11 options)
+7. System estimates token usage and validates availability
+8. System streams translation (GPT-4o-mini) with real-time updates
+9. System streams insights (GPT-4o) with real-time updates
+10. System saves article to database
+11. System consumes tokens (only after successful save)
+12. User views complete translation and insights
 
-### Subscription-Required Flow
-1. User pastes URL requiring subscription
-2. System detects paywall/subscription requirement
-3. System displays subscription workflow component
-4. User opens article in new tab and signs in
-5. User copies article content
-6. User pastes content into provided text area
-7. System processes pasted content (continues from step 6 above)
+### Author Profile Creation Flow
+1. User clicks "+ Custom Author Profile" or navigates to Settings
+2. User provides profile name
+3. User uploads 3-10 writing samples (files or paste)
+4. System validates samples (200-800 words each, minimum 3)
+5. System creates voice profile in database
+6. System extracts style rules using OpenAI (tone, patterns, avoid list)
+7. System saves extracted rules to profile
+8. Profile becomes available in Writing Style dropdown
+9. User can view, expand, and delete individual samples
+10. User can delete entire profile (minimum 3 samples enforced)
 
-### Token Limit Flow
-1. User attempts to process article
-2. System checks token availability
-3. If insufficient tokens → Display upgrade prompt
-4. User upgrades to paid plan (1M tokens/month)
-5. User continues processing
+### Payment & Subscription Flow
+1. User clicks "Upgrade" or "Manage Subscription"
+2. System creates Stripe Checkout Session
+3. User completes payment on Stripe
+4. Stripe webhook updates user to paid status
+5. User gains access to 1,000,000 tokens/month
+6. User can view payment history in Settings
+7. User can manage payment methods via Billing Portal
+8. User can cancel subscription (status changes to cancelled)
 
-## Environment Variables
+### Article History Flow
+1. User views paginated article list (10 per page)
+2. User can click article to load and re-process
+3. User can delete article (soft delete - UI only)
+4. Pagination updates automatically after deletion
+5. Empty pages redirect to previous page
 
-```env
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
+## Database Schema
 
-# Supabase Configuration (REQUIRED)
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-# NextAuth Configuration
-NEXTAUTH_SECRET=your_random_secret_here
-NEXTAUTH_URL=http://localhost:3000
-
-# Google OAuth (OPTIONAL - app works without it)
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-
-# Application Configuration
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-
-# Stripe Configuration
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
-STRIPE_PRICE_ID=your_stripe_price_id
+### `users` Table
+```sql
+- id (UUID, PRIMARY KEY)
+- email (TEXT, UNIQUE, NOT NULL)
+- password (TEXT, nullable) -- Hashed for email/password users
+- name (TEXT, nullable)
+- image (TEXT, nullable)
+- user_type (TEXT) -- 'trial' | 'paid'
+- tokens_used (BIGINT, DEFAULT 0)
+- token_limit (BIGINT, DEFAULT 1000)
+- subscription_status (TEXT) -- 'active' | 'expired' | 'cancelled'
+- subscription_expires_at (TIMESTAMPTZ)
+- payment_id (TEXT) -- Stripe customer ID
+- default_writing_style (TEXT) -- User preference
+- default_expression_variation (TEXT) -- 'light' | 'medium' | 'heavy'
+- default_target_language (TEXT, DEFAULT 'zh')
+- show_language_toggle (BOOLEAN, DEFAULT true)
+- default_ui_language (TEXT, DEFAULT 'en') -- 'en' | 'zh'
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
 ```
 
-### Required vs Optional
-- **Required**: OpenAI API key, Supabase credentials (URL, anon key, service role key), NextAuth secret
-- **Optional**: Google OAuth credentials (app works with email/password only if not provided)
-- **Payment**: Stripe credentials required for payment functionality (app works without it, but upgrade won't process payments)
+### `articles` Table
+```sql
+- id (UUID, PRIMARY KEY)
+- user_id (UUID, FOREIGN KEY → users.id)
+- title (TEXT, NOT NULL)
+- input_type (TEXT) -- 'url' | 'text' | 'video'
+- source_url (TEXT, nullable)
+- original_content (TEXT, NOT NULL)
+- translated_content (TEXT, NOT NULL)
+- insights (TEXT, NOT NULL)
+- style (TEXT) -- Writing style used
+- target_language (TEXT, DEFAULT 'zh')
+- tokens_used (INTEGER, DEFAULT 0)
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+```
+
+### `voice_profiles` Table (Author Profiles)
+```sql
+- id (UUID, PRIMARY KEY)
+- user_id (UUID, FOREIGN KEY → users.id)
+- name (TEXT, NOT NULL)
+- sliders_json (JSONB, nullable)
+- do_list (TEXT[], nullable)
+- dont_list (TEXT[], nullable)
+- style_rules (JSONB) -- Extracted style characteristics
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+```
+
+### `voice_samples` Table
+```sql
+- id (UUID, PRIMARY KEY)
+- voice_profile_id (UUID, FOREIGN KEY → voice_profiles.id)
+- content (TEXT, NOT NULL)
+- word_count (INTEGER)
+- platform (TEXT, nullable)
+- created_at (TIMESTAMPTZ)
+```
 
 ## API Endpoints
 
-### `POST /api/process-article`
+### Article Processing
 
-Requires authentication. Processes an article and returns translation and insights. Includes token validation and subscription detection.
+#### `POST /api/process-article-stream`
+**Streaming endpoint for article processing with real-time updates**
 
-**Request**
-
+**Request Body:**
 ```json
 {
-  "inputType": "url | text",
+  "inputType": "url" | "text" | "video",
   "content": "string",
-  "style": "warmBookish | lifeReflection | contrarian | education | science" // optional
+  "style": "warmBookish" | "lifeReflection" | "contrarian" | "education" | "science" (optional),
+  "rewritingLevel": "light" | "medium" | "heavy" (optional),
+  "voiceProfileId": "uuid" (optional),
+  "targetLanguage": "zh" | "en" | "es" | "fr" | "de" | "ja" | "ko" | "pt" | "it" | "ru" | "ar" (optional, default: "zh")
 }
 ```
 
-**Success Response**
+**Response:** Server-Sent Events stream with events:
+- `status`: Progress updates
+- `time_estimate`: Time remaining estimates
+- `translation_chunk`: Streaming translation text
+- `insights_chunk`: Streaming insights text
+- `complete`: Final result with article ID
+- `error`: Error messages
+- `save_error`: Database save errors (non-blocking)
 
+**Success Response (complete event):**
 ```json
 {
   "translation": "string",
   "insights": "string",
   "requiresSubscription": false,
   "style": "warmBookish",
+  "articleId": "uuid",
+  "tokensUsed": 150
+}
+```
+
+### Article Management
+
+#### `GET /api/articles`
+**Get paginated article history**
+
+**Query Parameters:**
+- `limit` (optional, default: 10): Articles per page
+- `page` (optional, default: 1): Page number
+
+**Response:**
+```json
+{
+  "articles": [
+    {
+      "id": "uuid",
+      "title": "string",
+      "createdAt": "ISO date",
+      "inputType": "url" | "text" | "video",
+      "sourceUrl": "string" | null,
+      "style": "string" | null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalArticles": 50,
+    "totalPages": 5
+  }
+}
+```
+
+#### `GET /api/articles/[id]`
+**Get single article by ID**
+
+**Response:**
+```json
+{
+  "article": {
+    "id": "uuid",
+    "title": "string",
+    "inputType": "url" | "text" | "video",
+    "sourceUrl": "string" | null,
+    "originalContent": "string",
+    "translatedContent": "string",
+    "insights": "string",
+    "style": "string" | null,
+    "targetLanguage": "zh",
+    "createdAt": "ISO date"
+  }
+}
+```
+
+### Author Profiles (Voice Profiles)
+
+#### `GET /api/voice-profiles`
+**Get all voice profiles for authenticated user**
+
+**Response:**
+```json
+{
+  "profiles": [
+    {
+      "id": "uuid",
+      "name": "string",
+      "sampleCount": 5,
+      "createdAt": "ISO date"
+    }
+  ]
+}
+```
+
+#### `POST /api/voice-profiles`
+**Create new voice profile**
+
+**Request Body:**
+```json
+{
+  "name": "string",
+  "samples": ["string", "string", ...], // 3-10 samples, 200-800 words each
+  "doList": ["string"] (optional),
+  "dontList": ["string"] (optional)
+}
+```
+
+#### `POST /api/voice-profiles/[id]/extract-style`
+**Extract style rules from voice profile samples**
+
+**Response:**
+```json
+{
+  "profile": { ... },
+  "styleRules": {
+    "tone": "string",
+    "sentencePatterns": "string",
+    "avoid": ["string"]
+  }
+}
+```
+
+#### `POST /api/voice-profiles/upload`
+**Upload writing sample file**
+
+**Request:** FormData with `file` field
+
+**Response:**
+```json
+{
+  "content": "string",
+  "wordCount": 500,
+  "fileName": "string"
+}
+```
+
+#### `DELETE /api/voice-profiles/[id]`
+**Delete voice profile**
+
+#### `DELETE /api/voice-samples/[id]`
+**Delete individual voice sample (minimum 3 samples enforced)**
+
+### User Preferences
+
+#### `GET /api/user-preferences`
+**Get user preferences**
+
+**Response:**
+```json
+{
+  "defaultWritingStyle": "warmBookish" | null,
+  "defaultExpressionVariation": "medium" | null,
+  "defaultTargetLanguage": "zh",
+  "showLanguageToggle": true,
+  "defaultUILanguage": "en"
+}
+```
+
+#### `PUT /api/user-preferences`
+**Update user preferences**
+
+**Request Body:**
+```json
+{
+  "defaultWritingStyle": "warmBookish" | null,
+  "defaultExpressionVariation": "medium" | null,
+  "defaultTargetLanguage": "zh",
+  "showLanguageToggle": true,
+  "defaultUILanguage": "en"
+}
+```
+
+### Payment & Subscription
+
+#### `POST /api/create-checkout-session`
+**Create Stripe Checkout session for subscription**
+
+**Response:**
+```json
+{
+  "sessionId": "cs_...",
+  "url": "https://checkout.stripe.com/..."
+}
+```
+
+#### `POST /api/create-portal-session`
+**Create Stripe Billing Portal session**
+
+**Response:**
+```json
+{
+  "url": "https://billing.stripe.com/..."
+}
+```
+
+#### `GET /api/payment-history`
+**Get payment invoice history**
+
+**Response:**
+```json
+{
+  "invoices": [
+    {
+      "id": "in_...",
+      "amount": 999,
+      "currency": "usd",
+      "status": "paid",
+      "created": 1234567890,
+      "periodStart": "2024-01-01",
+      "periodEnd": "2024-02-01",
+      "invoicePdf": "https://..."
+    }
+  ]
+}
+```
+
+#### `POST /api/cancel-subscription`
+**Cancel user subscription**
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Subscription cancelled successfully",
+  "subscriptionStatus": "cancelled"
+}
+```
+
+### Token Management
+
+#### `GET /api/token-usage`
+**Get current token usage**
+
+**Response:**
+```json
+{
+  "allowed": true,
   "tokensUsed": 150,
   "tokensRemaining": 850,
-  "tokensTotal": 150,
-  "tokenLimit": 1000
-}
-```
-
-**Error Responses**
-
-```json
-// Token limit reached
-{
-  "error": "TOKEN_LIMIT_REACHED",
-  "message": "You've used all your free tokens...",
-  "tokensUsed": 1000,
   "limit": 1000,
-  "upgradeRequired": true
-}
-
-// Subscription required
-{
-  "error": "SUBSCRIPTION_REQUIRED",
-  "message": "This article requires a subscription...",
-  "requiresSubscription": true,
-  "url": "https://..."
-}
-
-// Insufficient tokens
-{
-  "error": "INSUFFICIENT_TOKENS",
-  "message": "This article requires approximately X tokens...",
-  "estimatedTokens": 500,
-  "tokensRemaining": 200,
-  "upgradeRequired": true
+  "userType": "trial",
+  "subscriptionStartDate": "2024-01-01",
+  "subscriptionExpiresAt": "2024-02-01"
 }
 ```
 
-### `POST /api/auth/register`
+### Authentication
 
-Creates a new user account with email and password.
+#### `POST /api/auth/register`
+**Register new user**
 
-**Request**
-
+**Request Body:**
 ```json
 {
   "email": "user@example.com",
@@ -207,553 +540,182 @@ Creates a new user account with email and password.
 }
 ```
 
-### `POST /api/create-checkout-session`
+#### `GET/POST /api/auth/[...nextauth]`
+**NextAuth.js authentication handler**
 
-Creates a Stripe Checkout session for subscription payment. Requires authentication.
+## Edge Cases & Error Handling
 
-**Success Response**
+### Input Validation
+- **URL Format**: Validates URL structure, requires http/https
+- **Text Length**: Minimum 50 characters for text input
+- **URL in Text**: Detects URLs pasted in Raw Text field, shows error
+- **Empty Content**: Prevents processing of empty inputs
+- **YouTube Videos**: Automatically extracts and transcribes using Whisper API
+  - Validates video availability and length (max 2 hours)
+  - Handles private/unavailable videos with clear error messages
+  - Progress updates during audio download and transcription
 
-```json
-{
-  "sessionId": "cs_...",
-  "url": "https://checkout.stripe.com/..."
-}
+### Token Management
+- **Pre-Validation**: Estimates tokens before processing
+- **Final Check**: Re-validates before consuming tokens
+- **Save-First Strategy**: Tokens consumed only after successful article save
+- **Subscription Expiration**: Checks during processing, handles mid-processing expiration
+- **Insufficient Tokens**: Clear error messages with upgrade prompts
+
+### Database Operations
+- **Connection Errors**: Graceful handling with user-friendly messages
+- **Missing Tables**: Clear error messages with migration instructions
+- **Save Failures**: Non-blocking - results still available, error logged
+- **RLS Bypass**: Service role key used for server-side operations
+
+### Voice Profile Management
+- **Minimum Samples**: Enforces 3-sample minimum
+- **Sample Deletion**: Prevents deletion if it would leave < 3 samples
+- **Profile Deletion**: Clears selection in UI if deleted profile was active
+- **Style Rules Validation**: Validates structure and completeness
+- **Empty Samples**: Validates sample content before processing
+- **File Upload Errors**: Handles read errors, empty files, format issues
+
+### Article Processing
+- **Streaming Errors**: Graceful recovery from connection issues
+- **Timeout Handling**: 15-minute timeout with user notification
+- **Race Conditions**: Prevents duplicate submissions
+- **Subscription Expiration**: Detects and handles during processing
+- **Voice Profile Not Found**: Falls back to default style with error message
+
+### Pagination
+- **Empty Pages**: Redirects to previous page after deletion
+- **Count Failures**: Falls back to actual query results
+- **State Management**: Proper state updates after deletions
+
+### Error Message Standardization
+- **User-Friendly Messages**: All errors include `userMessage` field
+- **Actionable Guidance**: Errors include suggested actions
+- **Development Details**: Technical details only in development mode
+- **Error Codes**: Standardized error codes for programmatic handling
+
+## User Preferences System
+
+### Stored Preferences
+1. **Default Writing Style**: Pre-selected style on page load
+2. **Default Expression Variation**: Pre-selected variation level
+3. **Default Target Language**: Pre-selected translation language
+4. **Show Language Toggle**: Toggle visibility of language switcher in header
+5. **Default UI Language**: Default language for interface (English/Chinese)
+
+### Preference Application
+- **On Load**: Preferences applied when ArticleProcessor mounts
+- **Real-Time Updates**: Changes apply immediately via event system
+- **Persistence**: Saved to database, loaded on session start
+- **Fallbacks**: Sensible defaults if preferences not set
+
+## Progressive Rendering & Real-Time Updates
+
+### Server-Sent Events (SSE) Implementation
+- **Streaming Architecture**: ReadableStream with TextEncoder
+- **Event Types**: status, translation_chunk, insights_chunk, complete, error
+- **Progress Tracking**: Real-time progress percentages and time estimates
+- **Chunked Updates**: Content streamed as it's generated
+- **Error Recovery**: Graceful handling of stream interruptions
+
+### Frontend Handling
+- **Event Listener**: Parses SSE events and updates UI
+- **Buffer Management**: Handles partial messages and line breaks
+- **State Updates**: Real-time updates to translation and insights
+- **Loading States**: Visual feedback during processing
+- **Timeout Management**: 15-minute timeout with activity tracking
+
+## Security Features
+
+### Authentication
+- **NextAuth.js**: Industry-standard authentication
+- **Password Hashing**: bcryptjs for secure password storage
+- **Session Management**: Secure session handling
+- **OAuth Integration**: Google OAuth with proper callback handling
+
+### Database Security
+- **Row Level Security (RLS)**: Supabase RLS policies
+- **Service Role Key**: Server-side operations bypass RLS securely
+- **User Isolation**: All queries filtered by user_id
+- **Input Validation**: Zod schema validation on all inputs
+
+### Payment Security
+- **Stripe Integration**: PCI-compliant payment processing
+- **Webhook Verification**: Stripe signature verification
+- **Secure Sessions**: HTTPS-only checkout and portal sessions
+
+## Performance Optimizations
+
+### Database
+- **Indexes**: Optimized indexes on user_id, email, created_at
+- **Pagination**: Efficient pagination with range queries
+- **Connection Pooling**: Supabase handles connection management
+
+### API Routes
+- **Dynamic Routes**: `force-dynamic` for real-time data
+- **Streaming**: Reduces time-to-first-byte
+- **Error Handling**: Fast-fail on validation errors
+
+### Frontend
+- **Progressive Rendering**: Content appears as it's generated
+- **Lazy Loading**: Components loaded on demand
+- **State Management**: Efficient React state updates
+
+## Environment Variables
+
+### Required
+```env
+# Database
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ... (or sb_publishable_...)
+SUPABASE_SERVICE_ROLE_KEY=eyJ... (server-side only)
+
+# Authentication
+NEXTAUTH_SECRET=generate-with-openssl-rand-base64-32
+NEXTAUTH_URL=http://localhost:3000
+
+# AI
+OPENAI_API_KEY=sk-...
+
+# Payment
+STRIPE_SECRET_KEY=sk_test_... or sk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_... or pk_live_...
+STRIPE_PRICE_ID=price_...
+STRIPE_TOKEN_10K_PRICE_ID=price_... (optional)
+STRIPE_TOKEN_50K_PRICE_ID=price_... (optional)
 ```
 
-**Error Response**
+### Optional
+```env
+# Google OAuth
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
 
-```json
-{
-  "error": "Unauthorized",
-  "message": "Please sign in to continue"
-}
+# Email (Support Form)
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=Expression Copilot <onboarding@resend.dev>
+SUPPORT_EMAIL=your-email@example.com
 ```
-
-### `POST /api/webhooks/stripe`
-
-Stripe webhook endpoint for payment events. Handles:
-- `checkout.session.completed` - Upgrades user to paid
-- `customer.subscription.updated` - Updates subscription status
-- `customer.subscription.deleted` - Downgrades user to trial
-- `invoice.payment_succeeded` - Extends subscription
-- `invoice.payment_failed` - Logs payment failure
-
-### `GET /api/token-usage`
-
-Returns current token usage statistics for authenticated user.
-
-**Response**
-
-```json
-{
-  "allowed": true,
-  "tokensUsed": 150,
-  "tokensRemaining": 850,
-  "limit": 1000,
-  "userType": "trial"
-}
-```
-
-### Authentication Routes
-
-- `GET /api/auth/signin` - Sign in page
-- `GET /api/auth/signout` - Sign out
-- `GET /api/auth/[...nextauth]` - NextAuth.js handler
-- `POST /api/auth/register` - User registration
-
-## Authentication Methods
-
-### 1. Email/Password Registration
-
-Users can create an account with:
-- Email address
-- Password (minimum 6 characters)
-- Optional name
-
-**Default User Type**: Trial (1,000 tokens)
-
-### 2. Google SSO (Optional)
-
-Users can sign in with their Google account using OAuth 2.0. This feature is **optional** - if Google OAuth credentials are not provided in environment variables, the app works with email/password authentication only. The Google sign-in button automatically appears/disappears based on configuration.
-
-## Setup Instructions
-
-1. **Install Dependencies**
-   ```bash
-   npm install
-   ```
-
-2. **Set Up Supabase**
-   - Create account at https://supabase.com
-   - Create new project
-   - Run SQL from `supabase/schema.sql` in SQL Editor
-   - Get project URL, anon key, and **service role key** from Settings → API
-
-3. **Set Up Environment Variables**
-   - Copy `env.example` to `.env.local`
-   - Add all required environment variables:
-     - OpenAI API key
-     - Supabase URL, anon key, and **service role key** (required for server-side operations)
-     - NextAuth secret (generate with `openssl rand -base64 32`)
-     - Google OAuth credentials (optional)
-
-4. **Get API Keys**
-   - **OpenAI**: https://platform.openai.com/api-keys
-   - **Supabase**: Dashboard → Settings → API
-     - Use **anon public** key (starts with `eyJ`) for `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-     - Use **service_role** key (starts with `eyJ`) for `SUPABASE_SERVICE_ROLE_KEY`
-   - **Google OAuth** (optional): https://console.cloud.google.com/apis/credentials
-   - **NextAuth Secret**: Generate with `openssl rand -base64 32`
-
-5. **Run Development Server**
-   ```bash
-   npm run dev
-   ```
-
-For detailed setup instructions, see [SETUP.md](./SETUP.md) and [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
-
-## Token Management
-
-### Trial Users
-- **Token Limit**: 1,000 tokens
-- **Enforcement**: Strict - cannot process articles if limit reached
-- **Upgrade Prompt**: Automatic when limit reached or insufficient tokens
-- **Usage Tracking**: Real-time display with progress bar
-
-### Paid Users
-- **Token Limit**: 1,000,000 tokens per month
-- **Monthly Reset**: Token usage resets to 0 on each subscription renewal
-- **Subscription**: Monthly recurring subscription via Stripe
-- **Price**: $9.99/month (configurable)
-- **Usage Tracking**: Tracked and enforced - users cannot exceed 1M tokens per month
-- **Subscription Enforcement**: Token limit enforced based on active subscription status
-- **Payment**: Secure payment processing through Stripe Checkout
-
-### Token Calculation
-- Rough estimation: ~4 characters = 1 token
-- Calculated for: Input text + Translation + Insights
-- Pre-validation: System estimates tokens before processing
-
-## Subscription Detection & Handling
-
-### Detection Methods
-- HTML class/id attributes containing paywall keywords
-- Text content analysis for subscription messages
-- Content length validation (short content = likely paywalled)
-
-### User Workflow
-1. System detects subscription requirement
-2. Displays `SubscriptionRequired` component with:
-   - Clear explanation message
-   - Button to open article in new tab
-   - Step-by-step instructions
-   - Text area for pasted content
-3. User signs in to source website
-4. User copies article content
-5. User pastes content into app
-6. System automatically processes pasted content
-
-## Error Handling System
-
-### Centralized Error Handler (`lib/error-handler.ts`)
-- Standardized error codes
-- User-friendly messages
-- Actionable guidance
-- Industry best practices
-
-### Error Types
-- **Authentication**: Unauthorized, session expired
-- **Token**: Limit reached, insufficient tokens
-- **Content**: Extraction failed, subscription required, invalid URL, empty content
-- **API**: OpenAI errors, network errors
-- **Validation**: Invalid input
-
-### Error Display
-- Color-coded (red for errors, yellow for warnings)
-- Clear messaging with emoji indicators
-- Actionable buttons (e.g., "Upgrade to Paid Plan")
-- Context-aware help text
-
-## UI/UX Features
-
-### Modern Design System
-- **Colors**: Primary (#6366f1), secondary, accent colors
-- **Typography**: Clear hierarchy with Inter font
-- **Shadows**: Multiple elevation levels
-- **Spacing**: Consistent spacing scale
-- **Responsive**: Mobile-friendly layout
-
-### Components
-- **Hero Section**: Gradient text, feature cards, CTA buttons
-- **Navigation**: Sticky header with smooth transitions
-- **Forms**: Modern input styling with focus states
-- **Cards**: Elevated design with hover effects
-- **Error Messages**: User-friendly with actionable guidance
-
-### User Experience
-- Loading states for all async operations
-- Smooth transitions and animations
-- Clear visual feedback
-- Accessible design patterns
-
-## Payment System
-
-### Stripe Integration
-
-The app uses Stripe Checkout for secure payment processing:
-
-- **Checkout Flow**: User clicks upgrade → Stripe Checkout → Payment → Webhook updates user
-- **Webhook Security**: All webhooks verified with Stripe signatures
-- **Subscription Management**: Automatic handling of renewals, cancellations, and failures
-- **Test Mode**: Full testing support with Stripe test cards
-
-### Setup Required
-
-1. Stripe account and API keys
-2. Product and Price creation in Stripe Dashboard
-3. Webhook endpoint configuration
-4. Environment variables (see Environment Variables section)
-
-For detailed setup instructions, see [STRIPE_SETUP.md](./STRIPE_SETUP.md)
 
 ## Future Enhancements
 
-- Saved translation history
-- Bulk processing
-- Export formats (PDF, DOCX)
-- User profiles and preferences
-- Team/organization accounts
-- Advanced analytics dashboard
-- Multi-language support (beyond Chinese)
-- Subscription management page (cancel, update payment method)
-- Payment history view
+### Planned Features
+- **Bulk Processing**: Process multiple articles at once
+- **Export Formats**: PDF, DOCX, Markdown export
+- **Team Accounts**: Organization-level subscriptions
+- **Advanced Analytics**: Usage dashboards and insights
+- **Embedding-Based Retrieval**: V2 Author Profile system with semantic search
+- **Voice Quality Check**: Post-generation quality scoring and suggestions
 
-## Development Notes
-
-- Translation and insight generation are intentionally separated
-- Prompt quality is critical — iterate carefully
-- **Style System**: 5 writing archetypes configured in `lib/prompt-styles.ts` - easily extensible
-- **Style Selection**: Users can choose writing style via UI dropdown; defaults to "warmBookish"
-- **Temperature Control**: Each style has optimized temperature (0.7-0.85) for best results
-- **Stripe Integration**: Secure payment processing with webhook-based user upgrades
-- Token usage is tracked per request
-- Database uses Supabase with Row Level Security (RLS)
-- Server-side operations use service role key to bypass RLS
-- Google OAuth is optional - app gracefully handles missing credentials
-- Error handling follows industry best practices
-- All user-facing errors are translated to friendly messages
+### Technical Improvements
+- **Tailwind CSS Migration**: Utility-first styling
+- **Component Library**: shadcn/ui integration
+- **Testing**: Unit and integration tests
+- **Monitoring**: Error tracking and performance monitoring
+- **Caching**: Redis for frequently accessed data
 
 ---
 
-## Writing Style System
-
-The app supports 5 distinct writing style archetypes for insight generation, each designed to produce natural, engaging content that feels less robotic:
-
-### Available Styles
-
-1. **温暖书卷风 (Warm Bookish)** - Default
-   - Inspired by 十点读书
-   - Warm, emotional, longform style
-   - Empathetic tone with "陪你读/陪你想" companionship feel
-   - Uses second-person address, sensory scenes, gentle transitions
-   - Temperature: 0.85, Max Tokens: 2500
-
-2. **人生思考+实用智慧 (Life Reflection)**
-   - Inspired by 有书
-   - Life lessons + practical wisdom
-   - Calm, encouraging, slightly didactic but friendly
-   - Clear "problem—cause—method" structure
-   - Temperature: 0.75, Max Tokens: 2200
-
-3. **反直觉评论+犀利逻辑 (Contrarian)**
-   - Inspired by 远方青木
-   - Sharp, contrarian, logical
-   - Confident, direct, occasionally sarcastic
-   - Uses "If...then..." reasoning and strong logic chains
-   - Temperature: 0.8, Max Tokens: 2300
-
-4. **教育/写作/互联网观察 (Education)**
-   - Inspired by 玉树芝兰
-   - Educational, methodological, reflective
-   - Rational, thoughtful, practical frameworks
-   - Clear models and teachable methods
-   - Temperature: 0.75, Max Tokens: 2400
-
-5. **科学解释+怀疑思维 (Science)**
-   - Inspired by 果壳
-   - Science explainer, skeptical thinking
-   - Curious, precise, playful-but-rigorous
-   - Separates "what we know" vs "what's uncertain"
-   - Temperature: 0.7, Max Tokens: 2500
-
-### Style Configuration
-
-Styles are configured in `lib/prompt-styles.ts` with:
-- Tone guidelines
-- Structure templates
-- Rhetorical devices
-- Sentence style rules
-- What to avoid
-- Temperature and token limits
-
-Users can select their preferred style via a dropdown in the article processor UI.
-
-## OpenAI Prompt Templates (Production-Grade)
-
-These are cleanly separated, debuggable, and scalable.
-
-### Prompt 1 — Translation
-
-#### System Prompt
-
-```
-You are a professional multilingual translator.
-
-Your task:
-- Translate the provided content into Simplified Chinese
-- Preserve meaning, tone, and structure
-- Keep paragraph breaks, headings, and quotes
-- Do NOT summarize or add commentary
-- Do NOT omit information
-- Use clear, natural Chinese suitable for educated readers
-
-Output ONLY the translated text.
-```
-
-#### User Prompt (Translation)
-
-```
-Translate the following content into Simplified Chinese:
-
-{{ARTICLE_TEXT}}
-```
-
-### Prompt 2 — Insight & Interpretation
-
-**Note**: This prompt is now style-aware and dynamically generated based on the selected style archetype. The system prompt and user prompt are constructed from the style configuration in `lib/prompt-styles.ts`.
-
-#### System Prompt (Style-Aware)
-
-The system prompt is generated based on the selected style and includes:
-- Core goal and description
-- Tone guidelines
-- Structure requirements (opening, body, ending)
-- Rhetorical devices to use
-- Sentence style rules
-- What to avoid
-- Important guidelines for natural, engaging writing
-
-#### User Prompt (Style-Aware)
-
-The user prompt is generated based on the selected style and includes:
-- Instructions to write in the selected style
-- Article content to analyze
-- Structure requirements (3 main sections with subheadings)
-- Reminder to write naturally and avoid robotic language
-- Requirement for 3 actionable suggestions or questions at the end
-
-#### Default Style
-
-If no style is specified, the system defaults to "warmBookish" (温暖书卷风) for a warm, engaging reading experience.
-
-### Style Selection
-
-Users can select from 5 predefined styles via a dropdown in the article processor. Each style:
-- Uses optimized temperature settings for that style
-- Has appropriate token limits
-- Follows specific structural and rhetorical guidelines
-- Produces natural, engaging content that feels human-written
-
-The style system is extensible - new styles can be added by updating `lib/prompt-styles.ts`.
-
-## Prompt Chaining Recommendation
-
-Always run prompts in this order:
-
-1. Raw text → Translation prompt
-2. Translation output → Insight prompt
-
-This improves:
-- Output quality
-- Debuggability
-- Cost control
-
-## Cost Control & Best Practices
-
-### Token Management
-- **Trial Limit**: 1,000 tokens enforced strictly
-- **Pre-validation**: Estimate tokens before processing
-- **Real-time Tracking**: Display usage with progress indicators
-- **Upgrade Path**: Clear upgrade prompts when limit reached
-
-### Error Prevention
-- Validate token availability before processing
-- Check content length and validity
-- Detect subscription requirements early
-- Provide clear error messages with solutions
-
-### Performance
-- Efficient content extraction
-- Optimized API calls
-- Responsive UI with loading states
-- Error recovery mechanisms
-
-### Monitoring
-- Track token usage per user
-- Log API errors for debugging
-- Monitor subscription detection accuracy
-- Analyze user behavior patterns
-
-###
-Future Roadmap
-Task 1: UI/UX refactor with Tailwind CSS
-Effort level: Medium
-Current state:
-CSS custom properties (variables) with inline styles
-Mixed styling approach across components
-Design system exists but not consistently applied
-Why Medium:
-Migration requires updating all components
-Need to map existing CSS variables to Tailwind config
-Requires testing to ensure visual parity
-Can be done incrementally (component by component)
-Is this the best approach?
-Yes. Tailwind fits well for:
-Faster development with utility classes
-Better component consistency
-Easier responsive design
-Smaller bundle size with purging
-Good ecosystem (components, plugins)
-Considerations:
-Keep existing CSS variables for theming (dark mode)
-Use Tailwind's @apply or config to maintain design tokens
-Consider a component library (shadcn/ui) built on Tailwind
-Task 2: Feature additions
-2a. Language toggle
-Effort level: Medium
-Requirements:
-Update translateToChinese() to accept target language
-Add language selector UI
-Update API schema to store target language
-Update database schema (add target_language column)
-Update prompts for different languages
-Is this the best approach?
-Yes. This is a logical extension.
-Considerations:
-Start with 5–10 common languages
-Consider language-specific prompt tuning
-Store user language preference
-2b. Multi-modal translation (audio)
-Effort level: High
-Requirements:
-Audio transcription (OpenAI Whisper API or similar)
-Audio file upload handling
-Audio processing pipeline
-UI for audio input
-Storage for audio files (optional)
-Error handling for unsupported formats
-Is this the best approach?
-Yes, but consider:
-Start with text-to-speech output (easier)
-Then add speech-to-text input (harder)
-Use OpenAI Whisper API (recommended)
-Consider file size limits and processing time
-Alternative: Start with URL-based audio (YouTube, podcasts) before direct upload.
-2c. Copy/paste audio
-Effort level: High
-Requirements:
-Browser Audio API integration
-Clipboard API for audio data
-Audio format detection and conversion
-Real-time audio processing
-Cross-browser compatibility
-Is this the best approach?
-No. Clipboard audio support is limited and inconsistent. Better alternatives:
-Audio file upload (drag & drop)
-Audio URL input (YouTube, SoundCloud)
-Browser recording (microphone input)
-Recommendation: Implement file upload first, then consider recording.
-2d. Controllable output intensity
-Effort level: Medium–High
-Breakdown:
-Similarity threshold: Medium (requires prompt engineering, similarity metrics)
-Word count control: Low–Medium (prompt constraints, post-processing)
-Keyword protection: Medium (requires keyword detection, prompt modification)
-Is this the best approach?
-Yes, but implement incrementally:
-Word count control (easiest)
-Keyword protection (medium)
-Similarity threshold (hardest, may need embeddings)
-Considerations:
-These are advanced features; validate user demand first
-Similarity threshold may require additional AI models (embeddings)
-2e. Text import/export
-Effort level: Low–Medium
-Requirements:
-File upload (drag & drop or file picker)
-File parsing (TXT, DOCX, PDF, Markdown)
-Export functionality (download as TXT, DOCX, PDF, Markdown)
-UI for import/export buttons
-Is this the best approach?
-Yes. This is straightforward and valuable.
-Considerations:
-Start with TXT and Markdown
-Add DOCX/PDF later (requires libraries like mammoth, pdf-parse)
-Consider file size limits
-2f. Source display
-Effort level: Low
-Requirements:
-Already have source_url in database schema
-Just need to display it in UI
-Add source attribution component
-Is this the best approach?
-Yes. This is a simple display feature.
-Recommended development order
-Phase 1: Foundation (do first)
-Text import/export (Low–Medium)
-Quick win, high value
-Establishes file handling patterns
-No API changes needed
-Source display (Low)
-Very quick
-Improves UX immediately
-Uses existing data
-Phase 2: Core enhancements
-UI/UX refactor with Tailwind (Medium)
-Do before adding many new features
-Makes subsequent UI work faster
-Establishes design system
-Language toggle (Medium)
-High user value
-Requires API changes (do after UI refactor)
-Natural extension of existing functionality
-Phase 3: Advanced features
-Controllable output intensity (Medium–High)
-Start with word count (easiest)
-Then keyword protection
-Similarity threshold last (most complex)
-Multi-modal translation (High)
-Audio file upload first
-Then audio URL support
-Browser recording last
-Copy/paste audio (High) — not recommended
-Skip or defer
-Use file upload instead
-Summary table
-Feature	Effort	Priority	Phase
-Text Import/Export	Low–Medium	High	1
-Source Display	Low	High	1
-UI/UX Tailwind Refactor	Medium	High	2
-Language Toggle	Medium	High	2
-Word Count Control	Low–Medium	Medium	3
-Keyword Protection	Medium	Medium	3
-Audio File Upload	High	Medium	3
-Similarity Threshold	High	Low	3
-Audio URL Support	Medium	Low	3
-Copy/Paste Audio	High	Low	Skip
-Final recommendations
-Start with Phase 1 (import/export + source display) for quick wins
-Then do the Tailwind refactor to speed up future UI work
-Add language toggle as a major feature
-Evaluate user feedback before building advanced features
-Skip clipboard audio; use file upload instead###
+**Last Updated**: December 2024
+**Version**: 1.0.0
+**Application Name**: Expression Copilot (智能表达助理)
