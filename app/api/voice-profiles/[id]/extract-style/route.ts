@@ -46,11 +46,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
       );
     }
 
+    // Skip style extraction if profile type is 'prompt' only
+    if (profile.profileType === 'prompt') {
+      return NextResponse.json({
+        profile,
+        styleRules: null,
+        message: 'Custom prompt profile - style extraction not needed',
+      });
+    }
+
     // Fetch all samples
     const samples = await db.voiceSample.findByProfileId(profile.id);
-    if (samples.length < 3) {
+    if ((profile.profileType === 'samples' || profile.profileType === 'both') && samples.length < 1) {
       return NextResponse.json(
-        { error: 'INSUFFICIENT_SAMPLES', message: 'At least 3 samples are required' },
+        { error: 'INSUFFICIENT_SAMPLES', message: 'At least 1 sample is required' },
         { status: 400 }
       );
     }

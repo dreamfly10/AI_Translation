@@ -410,6 +410,39 @@ export async function POST(request: Request) {
               .single();
 
             if (saveError) {
+              // Handle missing target_language column gracefully
+              if (saveError.code === 'PGRST204' && saveError.message?.includes('target_language')) {
+                console.warn('[SAVE ARTICLE] target_language column missing, retrying without it...');
+                // Remove target_language and try again
+                const { target_language, ...articleDataWithoutTargetLang } = articleData;
+                const { data: savedArticleRetry, error: saveErrorRetry } = await supabaseServer
+                  .from('articles')
+                  .insert(articleDataWithoutTargetLang)
+                  .select('id')
+                  .single();
+
+                if (saveErrorRetry) {
+                  console.error('[SAVE ARTICLE ERROR] Retry failed:', saveErrorRetry);
+                  sendSSE(controller, 'save_error', {
+                    error: 'ARTICLE_SAVE_FAILED',
+                    message: saveErrorRetry.message,
+                    errorCode: saveErrorRetry.code,
+                    userMessage: 'Article processed but could not be saved. Please run the database migration to add the target_language column.',
+                    errorDetails: 'Run the SQL in supabase/migrations/add_target_language_to_articles.sql in your Supabase SQL Editor'
+                  });
+                } else {
+                  console.log('[SAVE ARTICLE] Saved successfully (without target_language)');
+                  sendSSE(controller, 'complete', {
+                    translation,
+                    insights,
+                    articleId: savedArticleRetry.id,
+                    style: selectedStyle,
+                  });
+                }
+                controller.close();
+                return;
+              }
+
               console.error('[SAVE ARTICLE ERROR] Full error:', {
                 code: saveError.code,
                 message: saveError.message,

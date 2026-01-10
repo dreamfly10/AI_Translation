@@ -56,6 +56,20 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
   // Collapse states
   const [translationCollapsed, setTranslationCollapsed] = useState(false);
   const [insightsCollapsed, setInsightsCollapsed] = useState(false);
+  
+  // TTS states
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [ttsLoadingInsights, setTtsLoadingInsights] = useState(false);
+  const [audioUrlInsights, setAudioUrlInsights] = useState<string | null>(null);
+  
+  // Audio player states
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [audioElementInsights, setAudioElementInsights] = useState<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlayingInsights, setIsPlayingInsights] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackRateInsights, setPlaybackRateInsights] = useState(1);
 
   // Fetch voice profiles on mount and when profiles are updated
   useEffect(() => {
@@ -132,6 +146,26 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       window.removeEventListener('preferencesUpdated', handlePreferencesUpdate);
     };
   }, []);
+
+  // Cleanup audio elements on unmount
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = '';
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+      }
+      if (audioElementInsights) {
+        audioElementInsights.pause();
+        audioElementInsights.src = '';
+        if (audioUrlInsights) {
+          URL.revokeObjectURL(audioUrlInsights);
+        }
+      }
+    };
+  }, [audioElement, audioElementInsights, audioUrl, audioUrlInsights]);
 
   // Clear content when switching input types
   useEffect(() => {
@@ -249,7 +283,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
   const handleExport = async (content: string, format: ExportFormat, title: string) => {
     try {
       const filename = title.replace(/[^a-z0-9\u4e00-\u9fa5]/gi, '_');
-      await exportContent(content, format);
+      await exportContent(content, format, filename);
     } catch (error) {
       console.error('Export error:', error);
       setError({
@@ -281,8 +315,8 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       setTargetLanguage(article.targetLanguage || 'zh'); // Restore target language
       
       // Set result to display translation and insights
-      // Clean insights to remove markdown headers
-      const cleanedInsights = article.insights.replace(/^#{1,3}\s+/gm, '');
+      // Clean insights to remove markdown headers (including ####)
+      const cleanedInsights = article.insights.replace(/^#{1,4}\s+/gm, '');
       setResult({
         translation: article.translatedContent,
         insights: cleanedInsights,
@@ -660,6 +694,174 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
     }
   };
 
+  const handleTextToSpeech = async (text: string, isInsights: boolean = false) => {
+    if (!text || text.trim().length === 0) {
+      return;
+    }
+
+    // Clear any previous TTS errors when starting a new attempt
+    if (error?.code === 'TTS_ERROR') {
+      setError(null);
+    }
+
+    // Stop any currently playing audio
+    if (isInsights) {
+      if (audioElementInsights) {
+        audioElementInsights.pause();
+        audioElementInsights.currentTime = 0;
+        setIsPlayingInsights(false);
+      }
+      setTtsLoadingInsights(true);
+      setAudioUrlInsights(null);
+    } else {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        setIsPlaying(false);
+      }
+      setTtsLoading(true);
+      setAudioUrl(null);
+    }
+
+    try {
+      const response = await fetch('/api/text-to-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          language: targetLanguage,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorData: any;
+        try {
+          const text = await response.text();
+          try {
+            errorData = JSON.parse(text);
+          } catch {
+            // If JSON parsing fails, use the raw text
+            errorData = { error: text || 'Unknown error', details: text || 'Failed to parse error response' };
+          }
+        } catch (err) {
+          errorData = { error: 'Unknown error', details: 'Failed to read error response' };
+        }
+        const errorMessage = errorData.details || errorData.error || 'Failed to generate audio';
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      // Convert base64 to blob and create audio URL
+      const audioBlob = new Blob([
+        Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
+      ], { type: data.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' });
+      
+      const url = URL.createObjectURL(audioBlob);
+      
+      // Create audio element with controls
+      const audio = new Audio(url);
+      audio.playbackRate = isInsights ? playbackRateInsights : playbackRate;
+      
+      if (isInsights) {
+        setAudioUrlInsights(url);
+        setAudioElementInsights(audio);
+      } else {
+        setAudioUrl(url);
+        setAudioElement(audio);
+      }
+
+      // Play audio automatically
+      audio.play().then(() => {
+        if (isInsights) {
+          setIsPlayingInsights(true);
+        } else {
+          setIsPlaying(true);
+        }
+      }).catch((err) => {
+        console.error('Error playing audio:', err);
+      });
+
+      // Handle audio events
+      audio.onended = () => {
+        if (isInsights) {
+          setIsPlayingInsights(false);
+          setAudioUrlInsights(null);
+          setAudioElementInsights(null);
+        } else {
+          setIsPlaying(false);
+          setAudioUrl(null);
+          setAudioElement(null);
+        }
+        URL.revokeObjectURL(url);
+      };
+
+      audio.onpause = () => {
+        if (isInsights) {
+          setIsPlayingInsights(false);
+        } else {
+          setIsPlaying(false);
+        }
+      };
+
+      audio.onplay = () => {
+        if (isInsights) {
+          setIsPlayingInsights(true);
+        } else {
+          setIsPlaying(true);
+        }
+      };
+    } catch (error: any) {
+      console.error('TTS error:', error);
+      setError({
+        code: 'TTS_ERROR',
+        message: 'Failed to generate audio',
+        userMessage: error.message || 'Failed to generate audio. Please ensure edge-tts is installed on the server.',
+        actionable: 'If this is the first time using TTS, please install edge-tts: pip install edge-tts',
+        statusCode: 500,
+      });
+    } finally {
+      if (isInsights) {
+        setTtsLoadingInsights(false);
+      } else {
+        setTtsLoading(false);
+      }
+    }
+  };
+
+  const handlePlayPause = (isInsights: boolean = false) => {
+    const audio = isInsights ? audioElementInsights : audioElement;
+    if (!audio) return;
+
+    if (audio.paused) {
+      audio.play();
+    } else {
+      audio.pause();
+    }
+  };
+
+  const handleReplay = (isInsights: boolean = false) => {
+    const audio = isInsights ? audioElementInsights : audioElement;
+    if (!audio) return;
+
+    audio.currentTime = 0;
+    audio.play();
+  };
+
+  const handleSpeedChange = (speed: number, isInsights: boolean = false) => {
+    const audio = isInsights ? audioElementInsights : audioElement;
+    if (!audio) return;
+
+    audio.playbackRate = speed;
+    if (isInsights) {
+      setPlaybackRateInsights(speed);
+    } else {
+      setPlaybackRate(speed);
+    }
+  };
+
   return (
     <div>
       {loadingArticle && (
@@ -912,7 +1114,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 e.currentTarget.style.borderColor = 'var(--color-border)';
               }}
             >
-              + {language === 'en' ? 'Custom Author Profile' : '自定义作者档案'}
+              + {language === 'en' ? 'Add Your Thinking Style' : '添加您的思维风格'}
             </button>
           </div>
           <select
@@ -1131,8 +1333,39 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             borderRadius: 'var(--radius-md)',
             border: `1px solid ${error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS' 
               ? 'var(--color-warning)' 
-              : 'var(--color-error)'}`
+              : 'var(--color-error)'}`,
+            position: 'relative'
           }}>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                position: 'absolute',
+                top: 'var(--spacing-md)',
+                right: 'var(--spacing-md)',
+                background: 'transparent',
+                border: 'none',
+                color: error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS'
+                  ? 'var(--color-warning)'
+                  : 'var(--color-error)',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+                padding: '0.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-sm)',
+                transition: 'background var(--transition-base)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+              title="Dismiss"
+            >
+              ×
+            </button>
             <div style={{ 
               marginBottom: 'var(--spacing-md)',
               fontWeight: 500,
@@ -1144,7 +1377,8 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: 'var(--spacing-sm)',
-                marginBottom: 'var(--spacing-sm)'
+                marginBottom: 'var(--spacing-sm)',
+                paddingRight: '2rem'
               }}>
                 <span>{error.code === 'TOKEN_LIMIT_REACHED' || error.code === 'INSUFFICIENT_TOKENS' ? '⚠️' : '❌'}</span>
                 <strong>{error.userMessage}</strong>
@@ -1228,7 +1462,98 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 </button>
               </div>
               {result?.translation && (
-                <div ref={translationExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)' }}>
+                <div ref={translationExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                  {!audioUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => handleTextToSpeech(result.translation || streamingTranslation || '', false)}
+                      disabled={ttsLoading}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: ttsLoading ? 'var(--color-background-tertiary)' : 'var(--color-background-secondary)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'var(--color-text-primary)',
+                        cursor: ttsLoading ? 'not-allowed' : 'pointer',
+                        fontSize: '0.875rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        opacity: ttsLoading ? 0.6 : 1
+                      }}
+                      title={t('processor.textToSpeech')}
+                    >
+                      {ttsLoading ? (
+                        <>
+                          <span style={{ fontSize: '0.75rem' }}>⏳</span>
+                          {t('processor.textToSpeech.generating')}
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: '0.875rem' }}>🔊</span>
+                          {t('processor.textToSpeech')}
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center', padding: '0.5rem', background: 'var(--color-background-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                      <button
+                        type="button"
+                        onClick={() => handlePlayPause(false)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--color-text-primary)',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title={isPlaying ? 'Pause' : 'Play'}
+                      >
+                        {isPlaying ? '⏸️' : '▶️'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReplay(false)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--color-text-primary)',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title="Replay"
+                      >
+                        🔄
+                      </button>
+                      <select
+                        value={playbackRate}
+                        onChange={(e) => handleSpeedChange(parseFloat(e.target.value), false)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: 'var(--color-background)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--color-text-primary)',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem'
+                        }}
+                        title="Playback Speed"
+                      >
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1">1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                      </select>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setTranslationExportOpen(!translationExportOpen)}
@@ -1354,7 +1679,101 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 </button>
               </div>
               {result?.insights && (
-                <div ref={insightsExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)' }}>
+                <div ref={insightsExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                  {!audioUrlInsights ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cleanedInsights = (result?.insights || streamingInsights || '').replace(/^#{1,4}\s+/gm, '');
+                        handleTextToSpeech(cleanedInsights, true);
+                      }}
+                      disabled={ttsLoadingInsights}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: ttsLoadingInsights ? 'var(--color-background-tertiary)' : 'var(--color-background-secondary)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'var(--color-text-primary)',
+                        cursor: ttsLoadingInsights ? 'not-allowed' : 'pointer',
+                        fontSize: '0.875rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        opacity: ttsLoadingInsights ? 0.6 : 1
+                      }}
+                      title={t('processor.textToSpeech')}
+                    >
+                      {ttsLoadingInsights ? (
+                        <>
+                          <span style={{ fontSize: '0.75rem' }}>⏳</span>
+                          {t('processor.textToSpeech.generating')}
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: '0.875rem' }}>🔊</span>
+                          {t('processor.textToSpeech')}
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center', padding: '0.5rem', background: 'var(--color-background-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                      <button
+                        type="button"
+                        onClick={() => handlePlayPause(true)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--color-text-primary)',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title={isPlayingInsights ? 'Pause' : 'Play'}
+                      >
+                        {isPlayingInsights ? '⏸️' : '▶️'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReplay(true)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--color-text-primary)',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title="Replay"
+                      >
+                        🔄
+                      </button>
+                      <select
+                        value={playbackRateInsights}
+                        onChange={(e) => handleSpeedChange(parseFloat(e.target.value), true)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background: 'var(--color-background)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--color-text-primary)',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem'
+                        }}
+                        title="Playback Speed"
+                      >
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1">1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                      </select>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setInsightsExportOpen(!insightsExportOpen)}
@@ -1392,7 +1811,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                           key={format}
                           type="button"
                           onClick={() => {
-                            const content = (result?.insights || streamingInsights || '').replace(/^#{1,3}\s+/gm, '');
+                            const content = (result?.insights || streamingInsights || '').replace(/^#{1,4}\s+/gm, '');
                             const title = 'Insights and Interpretation';
                             handleExport(content, format, title);
                             setInsightsExportOpen(false);
@@ -1431,7 +1850,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 color: 'var(--color-text-primary)',
                 fontSize: '1.0625rem'
               }}>
-                {result?.insights?.replace(/^#{1,3}\s+/gm, '') || streamingInsights || ''}
+                {(result?.insights || streamingInsights || '').replace(/^#{1,4}\s+/gm, '')}
               </div>
             )}
           </div>

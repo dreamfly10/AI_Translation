@@ -13,7 +13,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { data: session } = useSession();
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { initialSection } = useSettingsModal();
   const [activeSection, setActiveSection] = useState<'userInfo' | 'subscription' | 'paymentHistory' | 'voiceProfile' | 'preferences'>(initialSection || 'userInfo');
   const [showVoiceProfileModal, setShowVoiceProfileModal] = useState(false);
@@ -44,6 +44,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     showLanguageToggle: true,
     defaultUILanguage: 'en' as 'en' | 'zh',
   });
+  const [previousUILanguage, setPreviousUILanguage] = useState<'en' | 'zh'>('en');
   const [loadingPreferences, setLoadingPreferences] = useState(false);
   const [savingPreferences, setSavingPreferences] = useState(false);
 
@@ -56,8 +57,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         // Default to userInfo when modal opens without a specific section
         setActiveSection('userInfo');
       }
+    } else {
+      // Clear error when modal closes
+      setError(null);
     }
   }, [initialSection, isOpen]);
+
+  // Clear error when navigating between sections
+  useEffect(() => {
+    setError(null);
+  }, [activeSection]);
 
   // Fetch user info on mount
   useEffect(() => {
@@ -164,13 +173,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const response = await fetch('/api/user-preferences');
       if (response.ok) {
         const data = await response.json();
+        const fetchedUILanguage = data.defaultUILanguage || 'en';
         setPreferences({
           defaultWritingStyle: data.defaultWritingStyle || null,
           defaultExpressionVariation: data.defaultExpressionVariation || null,
           defaultTargetLanguage: data.defaultTargetLanguage || 'zh',
           showLanguageToggle: data.showLanguageToggle !== undefined ? data.showLanguageToggle : true,
-          defaultUILanguage: data.defaultUILanguage || 'en',
+          defaultUILanguage: fetchedUILanguage,
         });
+        setPreviousUILanguage(fetchedUILanguage);
       }
     } catch (err) {
       console.error('Error fetching preferences:', err);
@@ -202,6 +213,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       if (response.ok) {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
+        
+        // If defaultUILanguage changed, update language immediately
+        const newUILanguage = preferences.defaultUILanguage || 'en';
+        if (newUILanguage !== previousUILanguage) {
+          setLanguage(newUILanguage);
+          localStorage.setItem('language', newUILanguage);
+          setPreviousUILanguage(newUILanguage);
+        }
+        
         // Dispatch event to notify ArticleProcessor and UserHomePage
         window.dispatchEvent(new CustomEvent('preferencesUpdated'));
       } else {
@@ -602,7 +622,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       gap: 'var(--spacing-sm)'
                     }}
                   >
-                    🎤 {language === 'en' ? 'Author Profile' : '作者档案'}
+                    🎤 {language === 'en' ? 'Add Your Thinking Style' : '添加您的思维风格'}
                   </button>
                   <button
                     onClick={() => setActiveSection('preferences')}
@@ -662,8 +682,38 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   borderRadius: 'var(--radius-md)',
                   marginBottom: 'var(--spacing-lg)',
                   border: '1px solid var(--color-error)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 'var(--spacing-md)'
                 }}>
-                  ❌ {error}
+                  <span>❌ {error}</span>
+                  <button
+                    onClick={() => setError(null)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-error)',
+                      cursor: 'pointer',
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '1.25rem',
+                      lineHeight: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 'var(--radius-sm)',
+                      transition: 'background var(--transition-base)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                    title={language === 'en' ? 'Dismiss' : '关闭'}
+                  >
+                    ×
+                  </button>
                 </div>
               )}
 
@@ -792,8 +842,38 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   borderRadius: 'var(--radius-md)',
                   marginBottom: 'var(--spacing-lg)',
                   border: '1px solid var(--color-error)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 'var(--spacing-md)'
                 }}>
-                  ❌ {error}
+                  <span>❌ {error}</span>
+                  <button
+                    onClick={() => setError(null)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-error)',
+                      cursor: 'pointer',
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '1.25rem',
+                      lineHeight: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 'var(--radius-sm)',
+                      transition: 'background var(--transition-base)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                    title={language === 'en' ? 'Dismiss' : '关闭'}
+                  >
+                    ×
+                  </button>
                 </div>
               )}
 
@@ -1147,7 +1227,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {activeSection === 'voiceProfile' && (
             <div>
               <h2 style={{ margin: '0 0 var(--spacing-lg) 0' }}>
-                {language === 'en' ? 'Author Profile' : '作者档案'}
+                {language === 'en' ? 'Add Your Thinking Style' : '添加您的思维风格'}
               </h2>
               
               <div style={{
@@ -1156,29 +1236,48 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 borderRadius: 'var(--radius-md)',
                 marginBottom: 'var(--spacing-lg)',
                 fontSize: '0.875rem',
-                color: 'var(--color-text-secondary)'
+                color: 'var(--color-text-secondary)',
+                lineHeight: 1.6,
+                whiteSpace: 'pre-line'
               }}>
                 {language === 'en'
-                  ? 'Ensure consistency across everything you publish. Upload 3–10 writing samples to establish an Author Profile. The system captures your preferred tone, structure, and communication style, and uses it to generate translations and interpretations that align with your established writing identity.'
-                  : '确保您发布的所有内容保持一致。上传 3-10 个写作样本来建立作者档案。系统会捕获您偏好的语调、结构和沟通风格，并使用它来生成与您已建立的写作身份一致的翻译和解释。'}
+                  ? `Teach Expression Copilot how you prefer ideas to be explained and written.
+
+By uploading a few short writing samples, you help the system learn:
+
+1. how direct or nuanced you like explanations to be
+2. how structured or conversational your writing feels
+3. how critical, neutral, or interpretive your tone is
+
+Expression Copilot then uses this as a reference style when generating insights and interpretations — so the output sounds closer to how you would explain it.`
+                  : `教 Expression Copilot 如何按照您偏好的方式解释和写作。
+
+通过上传几个简短的写作样本，您可以帮助系统学习：
+
+1. 您喜欢直接还是细致的解释
+2. 您的写作风格是结构化还是对话式
+3. 您的语调是批判性、中性还是解释性
+
+Expression Copilot 然后将其用作生成见解和解释时的参考风格 — 使输出更接近您的表达方式。`}
               </div>
 
-              <button
-                onClick={() => setShowVoiceProfileModal(true)}
-                style={{
-                  padding: 'var(--spacing-md) var(--spacing-xl)',
-                  background: 'var(--color-primary)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '1rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  marginBottom: 'var(--spacing-lg)'
-                }}
-              >
-                {language === 'en' ? '+ Add My Custom Style' : '+ 添加我的自定义风格'}
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                <button
+                  onClick={() => setShowVoiceProfileModal(true)}
+                  style={{
+                    padding: 'var(--spacing-md) var(--spacing-xl)',
+                    background: 'var(--color-primary)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {language === 'en' ? 'Add Your Style' : '添加您的风格'}
+                </button>
+              </div>
 
               {voiceProfiles.length === 0 ? (
                 <div style={{
@@ -1569,9 +1668,39 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       background: 'var(--color-error)',
                       color: 'white',
                       borderRadius: 'var(--radius-md)',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 'var(--spacing-md)'
                     }}>
-                      {error}
+                      <span>{error}</span>
+                      <button
+                        onClick={() => setError(null)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '1.25rem',
+                          lineHeight: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: 'var(--radius-sm)',
+                          transition: 'background var(--transition-base)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                        title={language === 'en' ? 'Dismiss' : '关闭'}
+                      >
+                        ×
+                      </button>
                     </div>
                   )}
                 </div>

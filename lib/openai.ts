@@ -212,24 +212,128 @@ export async function generateInsights(
     if (!profile) {
       throw new Error(`Voice profile ${voiceProfileId} not found`);
     }
-    
-    if (!profile.styleRules || typeof profile.styleRules !== 'object') {
-      throw new Error(`Voice profile ${voiceProfileId} does not have valid style rules. Please extract style rules first.`);
-    }
-    
-    // Get 1-2 most representative samples (for MVP, just get first 2)
-    const samples = await db.voiceSample.findByProfileId(voiceProfileId);
-    
-    if (!samples || samples.length === 0) {
-      throw new Error(`Voice profile ${voiceProfileId} has no samples. Please add at least 3 samples.`);
-    }
-    
-    const representativeSamples = samples.slice(0, 2).map(s => s.content);
-    
-    // Validate styleRules structure
-    if (!profile.styleRules.tone && !profile.styleRules.sentencePatterns) {
-      throw new Error(`Voice profile ${voiceProfileId} has incomplete style rules. Please re-extract style rules.`);
-    }
+
+    const rewritingInstruction = rewritingLevel === 'light' 
+      ? 'Keep the original structure and wording similar, with minimal changes.'
+      : rewritingLevel === 'heavy'
+      ? 'Significantly rewrite the logic and expression while maintaining the core message.'
+      : 'Modify the structure and wording moderately.';
+
+    // Check if profile has custom prompt (profileType is 'prompt' or 'both')
+    if (profile.customPrompt && (profile.profileType === 'prompt' || profile.profileType === 'both')) {
+      // Use custom prompt directly as system prompt
+      if (profile.profileType === 'prompt') {
+        // Custom prompt only
+        systemPrompt = profile.customPrompt;
+        
+        userPrompt = `Based on the following translated article, follow the instructions in your system prompt to write an insightful interpretation.
+
+**Article to analyze:**
+${translation}
+
+**Expression Variation Level: ${rewritingLevel || 'medium'}**
+${rewritingInstruction}
+
+**Your task:**
+1. Write an engaging opening (2-3 sentences) that hooks the reader
+2. Develop 3 main sections with clear subheadings, each containing:
+   - A clear viewpoint
+   - Supporting evidence (examples, scenarios, or logical reasoning)
+   - Boundaries/limitations (when this doesn't apply)
+3. End with exactly 3 actionable suggestions or thought-provoking questions
+
+**Remember:**
+- Follow your system prompt instructions closely
+- Write in ${targetLanguage}
+- Do NOT use markdown formatting (no **, __, *, _, #, [], etc.) in your output
+- Write in plain text only`;
+      } else {
+        // Both custom prompt and style rules
+        const samples = await db.voiceSample.findByProfileId(voiceProfileId);
+        const representativeSamples = samples.length > 0 
+          ? samples.slice(0, 2).map(s => s.content.substring(0, 500))
+          : [];
+        
+        // Combine custom prompt with extracted style rules
+        systemPrompt = `${profile.customPrompt}
+
+**Additional Style Guidelines (from your writing samples):**
+${profile.styleRules?.tone ? `Tone: ${profile.styleRules.tone}` : ''}
+${profile.styleRules?.sentencePatterns ? `Sentence Patterns: ${profile.styleRules.sentencePatterns}` : ''}
+${(profile.styleRules?.avoid || []).length > 0 
+  ? `Things to Avoid:\n${(profile.styleRules.avoid || []).map((item: string) => `- ${item}`).join('\n')}`
+  : ''}
+
+**Important Guidelines:**
+- Write naturally in ${targetLanguage}
+- Follow your custom prompt instructions above
+- Incorporate the style characteristics from your writing samples
+- Make it sound like you wrote this, not an AI
+- Use evidence and examples to support your points
+- Always include boundaries/limitations for your arguments
+- End with exactly 3 actionable suggestions or thought-provoking questions
+- Do NOT use markdown formatting (no **, __, *, _, #, [], etc.) in your output
+- Write in plain text only`;
+        
+        userPrompt = `Based on the following translated article, write an insightful interpretation following your system prompt and style guidelines.
+
+**Your Writing Samples (for reference):**
+${representativeSamples.length > 0 
+  ? representativeSamples.map((sample, i) => `Sample ${i + 1}:\n${sample}...`).join('\n\n---\n\n')
+  : 'No samples available.'}
+
+**Article to analyze:**
+${translation}
+
+**Expression Variation Level: ${rewritingLevel || 'medium'}**
+${rewritingInstruction}
+
+**Your task:**
+1. Write an engaging opening (2-3 sentences) that hooks the reader
+2. Develop 3 main sections with clear subheadings, each containing:
+   - A clear viewpoint
+   - Supporting evidence (examples, scenarios, or logical reasoning)
+   - Boundaries/limitations (when this doesn't apply)
+3. End with exactly 3 actionable suggestions or thought-provoking questions
+
+**Remember:**
+- Follow your custom prompt instructions
+- Match the tone and style from your writing samples
+- Make it feel like you wrote this, not an AI
+- Vary your language and structure throughout
+- Follow the expression variation level specified above
+- Do NOT use markdown formatting (no **, __, *, _, #, [], etc.) in your output
+- Write in plain text only`;
+      }
+
+      // Use default style config for token limits
+      const styleConfig = styleArchetypes[style];
+      maxTokens = styleConfig.maxTokens;
+      
+      // Adjust temperature based on rewriting level
+      const baseTemperature = styleConfig.temperature;
+      if (rewritingLevel === 'light') {
+        temperature = Math.max(0.3, baseTemperature - 0.15);
+      } else if (rewritingLevel === 'heavy') {
+        temperature = Math.min(0.95, baseTemperature + 0.15);
+      } else {
+        temperature = baseTemperature; // medium or default
+      }
+    } else if (profile.styleRules && typeof profile.styleRules === 'object') {
+      // Use extracted style rules only (backward compatibility)
+      // Get 1-2 most representative samples
+      const samples = await db.voiceSample.findByProfileId(voiceProfileId);
+      
+      if (!samples || samples.length === 0) {
+        throw new Error(`Voice profile ${voiceProfileId} has no samples. Please add at least 1 sample.`);
+      }
+      
+      const representativeSamples = samples.slice(0, 2).map(s => s.content);
+      
+      // Validate styleRules structure
+      if (!profile.styleRules.tone && !profile.styleRules.sentencePatterns) {
+        throw new Error(`Voice profile ${voiceProfileId} has incomplete style rules. Please re-extract style rules.`);
+      }
 
       // Build system prompt with voice profile rules
       systemPrompt = `You are an expert writer writing in the user's personal voice and style.
@@ -254,12 +358,6 @@ ${(profile.styleRules.avoid || []).map((item: string) => `- ${item}`).join('\n')
 - Write in plain text only`;
 
       // Build user prompt with representative samples
-      const rewritingInstruction = rewritingLevel === 'light' 
-        ? 'Keep the original structure and wording similar, with minimal changes.'
-        : rewritingLevel === 'heavy'
-        ? 'Significantly rewrite the logic and expression while maintaining the core message.'
-        : 'Modify the structure and wording moderately.';
-      
       userPrompt = `Based on the following translated article, write an insightful interpretation in the user's personal voice.
 
 **User's Writing Samples (for reference):**
@@ -303,6 +401,9 @@ ${rewritingInstruction}
       } else {
         temperature = baseTemperature; // medium or default
       }
+    } else {
+      throw new Error(`Voice profile ${voiceProfileId} does not have valid style rules or custom prompt. Please add either writing samples or a custom prompt.`);
+    }
   } else {
     // Use default style system
     const styleConfig = styleArchetypes[style];

@@ -7,7 +7,7 @@ Your `.env.local` file has incorrect Supabase configuration:
 **Current (WRONG):**
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://supabase.com/dashboard/project/tdwuydzydpnzaqdpizyo/database/tables/17484
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_secret_7gsLFqr1XGJkp6YMBIOeHg_8oHUD8Mn
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ## Problems
@@ -68,7 +68,7 @@ After fixing, your `.env.local` should have:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://[your-project-id].supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkd3V5ZHp5ZHBuemFxZHBpenlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MT...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvdXItcHJvamVjdC1pZCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzE...
 ```
 
 The anon key is a long JWT token that starts with `eyJ`.

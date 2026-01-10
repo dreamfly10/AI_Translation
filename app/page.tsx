@@ -138,103 +138,162 @@ function HomeContent() {
                 
                 {/* Text content below video */}
                 <div className="left" style={{ textAlign: 'center', maxWidth: '800px' }}>
-                  <h1 style={{ margin: '0 0 24px 0', color: 'var(--color-text-primary)' }}>
+                  <h1 style={{ margin: '0 0 12px 0', color: 'var(--color-text-primary)' }}>
                     {t('home.hero.title')}
                   </h1>
-                  <p style={{ maxWidth: '520px', margin: '0 auto 32px', color: 'var(--color-text-secondary)', fontSize: '1.125rem', lineHeight: 1.6 }}>
+                  <p style={{ margin: '0 0 24px 0', color: 'var(--color-text-secondary)', fontSize: '1rem', fontWeight: 400, opacity: 0.8 }}>
+                    {t('home.hero.subtitle')}
+                  </p>
+                  <p style={{ maxWidth: '700px', margin: '0 auto 32px', color: 'var(--color-text-secondary)', fontSize: '1.125rem', lineHeight: 1.6 }}>
                     {t('home.hero.description')}
                   </p>
-                  <div className="actions" style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <button
                       onClick={() => setShowGetStarted(true)}
                       style={{
-                        padding: 'var(--spacing-md) var(--spacing-xl)',
+                        padding: 'var(--spacing-lg) var(--spacing-2xl)',
                         background: 'var(--color-background-secondary)',
                         color: 'var(--color-text-primary)',
                         border: 'none',
                         borderRadius: 'var(--radius-md)',
-                        fontSize: '1rem',
-                        fontWeight: 500,
+                        fontSize: '1.25rem',
+                        fontWeight: 600,
                         cursor: 'pointer',
                         transition: 'all var(--transition-base)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '0.9';
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.transform = 'scale(1)';
                       }}
                     >
                       Get Started
                     </button>
-                    <a
-                      href="#features"
-                      style={{
-                        padding: 'var(--spacing-md) var(--spacing-xl)',
-                        fontSize: '1rem',
-                        fontWeight: 500,
-                        color: 'var(--color-text-primary)',
-                        textDecoration: 'none',
-                        transition: 'opacity var(--transition-base)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.opacity = '0.7';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = '1';
-                      }}
-                    >
-                      View Demo
-                    </a>
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* Features Section */}
+            {/* How It Works Section */}
             <section className="container" style={{ paddingTop: 'var(--spacing-3xl)', paddingBottom: 'var(--spacing-3xl)' }}>
+              <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
+                <h2 style={{ marginBottom: 'var(--spacing-xl)', color: 'var(--color-text-primary)', fontSize: '2rem', fontWeight: 700 }}>
+                  {t('home.howItWorks.title')}
+                </h2>
+                <p style={{ 
+                  color: 'var(--color-text-secondary)', 
+                  fontSize: '1.125rem', 
+                  lineHeight: 1.8,
+                  whiteSpace: 'pre-line',
+                  maxWidth: '800px',
+                  margin: '0 auto'
+                }}>
+                  {t('home.howItWorks.description')}
+                </p>
+              </div>
+            </section>
+
+            {/* Features Section */}
+            <section className="container" style={{ paddingTop: 'var(--spacing-3xl)', paddingBottom: 'var(--spacing-3xl)' }} id="features">
+              <h2 className="text-center" style={{ marginBottom: 'var(--spacing-2xl)', color: 'var(--color-text-primary)' }}>
+                {t('home.features.title')}
+              </h2>
               <div className="features">
                 <div className="feature-card">
                   <div style={{ 
-                    width: '64px', 
-                    height: '64px', 
+                    width: '100%', 
+                    maxWidth: '400px',
+                    height: '300px', 
                     borderRadius: 'var(--radius-lg)', 
-                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
                     margin: '0 auto var(--spacing-md)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '2rem'
+                    overflow: 'hidden',
+                    background: 'var(--color-background-secondary)',
+                    position: 'relative'
                   }}>
-                    ⚡
+                    <video
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                      autoPlay
+                      muted
+                      playsInline
+                      onEnded={(e) => {
+                        // Pause video when it ends (no loop)
+                        e.currentTarget.pause();
+                      }}
+                    >
+                      <source src="/capability-instant-clarity.mp4.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
                   </div>
                   <h3>{t('home.features.lightning')}</h3>
                   <p>{t('home.features.lightning.desc')}</p>
                 </div>
                 <div className="feature-card">
                   <div style={{ 
-                    width: '64px', 
-                    height: '64px', 
+                    width: '100%', 
+                    maxWidth: '400px',
+                    height: '300px', 
                     borderRadius: 'var(--radius-lg)', 
-                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
                     margin: '0 auto var(--spacing-md)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '2rem'
+                    overflow: 'hidden',
+                    background: 'var(--color-background-secondary)',
+                    position: 'relative'
                   }}>
-                    🧠
+                    <video
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                      autoPlay
+                      muted
+                      playsInline
+                      onEnded={(e) => {
+                        // Pause video when it ends (no loop)
+                        e.currentTarget.pause();
+                      }}
+                    >
+                      <source src="/capability-context.mp4.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
                   </div>
                   <h3>{t('home.features.smart')}</h3>
                   <p>{t('home.features.smart.desc')}</p>
                 </div>
                 <div className="feature-card">
                   <div style={{ 
-                    width: '64px', 
-                    height: '64px', 
+                    width: '100%', 
+                    maxWidth: '400px',
+                    height: '300px', 
                     borderRadius: 'var(--radius-lg)', 
-                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
                     margin: '0 auto var(--spacing-md)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '2rem'
+                    overflow: 'hidden',
+                    background: 'var(--color-background-secondary)',
+                    position: 'relative'
                   }}>
-                    📊
+                    <video
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                      autoPlay
+                      muted
+                      playsInline
+                      onEnded={(e) => {
+                        // Pause video when it ends (no loop)
+                        e.currentTarget.pause();
+                      }}
+                    >
+                      <source src="/capability-stay-in-control.mp4" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
                   </div>
                   <h3>{t('home.features.tracking')}</h3>
                   <p>{t('home.features.tracking.desc')}</p>
@@ -251,15 +310,15 @@ function HomeContent() {
                 <div className="features">
                   <div className="feature-card">
                     <h4>{t('home.usecases.researchers')}</h4>
-                    <p>{t('home.usecases.researchers.desc')}</p>
+                    <p style={{ whiteSpace: 'pre-line' }}>{t('home.usecases.researchers.desc')}</p>
                   </div>
                   <div className="feature-card">
                     <h4>{t('home.usecases.writers')}</h4>
-                    <p>{t('home.usecases.writers.desc')}</p>
+                    <p style={{ whiteSpace: 'pre-line' }}>{t('home.usecases.writers.desc')}</p>
                   </div>
                   <div className="feature-card">
                     <h4>{t('home.usecases.business')}</h4>
-                    <p>{t('home.usecases.business.desc')}</p>
+                    <p style={{ whiteSpace: 'pre-line' }}>{t('home.usecases.business.desc')}</p>
                   </div>
                   <div className="feature-card">
                     <h4>{t('home.usecases.students')}</h4>

@@ -202,6 +202,8 @@ export const db = {
       doList?: string[];
       dontList?: string[];
       styleRules?: any;
+      customPrompt?: string;
+      profileType?: 'samples' | 'prompt' | 'both';
     }) {
       if (!isSupabaseConfigured()) {
         throw new Error('Supabase is not configured');
@@ -216,12 +218,21 @@ export const db = {
           do_list: data.doList || [],
           dont_list: data.dontList || [],
           style_rules: data.styleRules || null,
+          custom_prompt: data.customPrompt || null,
+          profile_type: data.profileType || 'samples',
         })
         .select()
         .single();
 
       if (error) {
         console.error('Error creating voice profile:', error);
+        // Provide more helpful error messages
+        if (error.code === '42703' || error.message?.includes('column') && error.message?.includes('does not exist')) {
+          throw new Error('Database columns "custom_prompt" or "profile_type" do not exist. Please run the migration from supabase/migrations/add_custom_prompt_to_voice_profiles.sql in your Supabase SQL Editor.');
+        }
+        if (error.code === '42P01') {
+          throw new Error('Database table "voice_profiles" does not exist. Please run the SQL schema from supabase/schema.sql in your Supabase SQL Editor.');
+        }
         throw error;
       }
 
@@ -275,6 +286,8 @@ export const db = {
       doList?: string[];
       dontList?: string[];
       styleRules?: any;
+      customPrompt?: string;
+      profileType?: 'samples' | 'prompt' | 'both';
     }) {
       if (!isSupabaseConfigured()) {
         throw new Error('Supabase is not configured');
@@ -286,6 +299,8 @@ export const db = {
       if (data.doList !== undefined) updateData.do_list = data.doList;
       if (data.dontList !== undefined) updateData.dont_list = data.dontList;
       if (data.styleRules !== undefined) updateData.style_rules = data.styleRules;
+      if (data.customPrompt !== undefined) updateData.custom_prompt = data.customPrompt;
+      if (data.profileType !== undefined) updateData.profile_type = data.profileType;
 
       const { data: profile, error } = await supabaseServer
         .from('voice_profiles')
@@ -327,6 +342,8 @@ export const db = {
         doList: row.do_list || [],
         dontList: row.dont_list || [],
         styleRules: row.style_rules,
+        customPrompt: row.custom_prompt || null,
+        profileType: (row.profile_type || 'samples') as 'samples' | 'prompt' | 'both',
         createdAt: row.created_at ? new Date(row.created_at) : new Date(),
         updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
       };

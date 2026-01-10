@@ -96,7 +96,37 @@ function SignInContent() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <button type="submit" disabled={loading} style={{ width: '100%', marginTop: 'var(--spacing-md)' }}>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            style={{ 
+              width: '100%', 
+              marginTop: 'var(--spacing-md)',
+              padding: 'var(--spacing-md) var(--spacing-xl)',
+              borderRadius: '1.5rem',
+              background: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '1rem',
+              fontWeight: 500,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all var(--transition-base)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+              opacity: loading ? 0.6 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
+            }}
+          >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
           {error && (

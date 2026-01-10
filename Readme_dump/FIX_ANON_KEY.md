@@ -4,7 +4,7 @@
 
 Your `.env.local` has the **wrong type of key**. You're using:
 ```
-sb_publishable_9l0wsc0pdLDjw_Egvgpf8A_oHJnNzH6
+sb_publishable_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 But you need the **anon public key** which is a JWT token starting with `eyJ`.
@@ -30,12 +30,12 @@ Open your `.env.local` file and replace the anon key:
 
 **Before (WRONG):**
 ```env
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_9l0wsc0pdLDjw_Egvgpf8A_oHJnNzH6
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 **After (CORRECT):**
 ```env
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkd3V5ZHp5ZHBuemFxZHBpenlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MT...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvdXItcHJvamVjdC1pZCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzE...
 ```
 
 **Important:** 
