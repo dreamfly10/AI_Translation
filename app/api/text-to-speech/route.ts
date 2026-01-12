@@ -69,7 +69,7 @@ except Exception as e:
 
     const pythonFile = path.join(tempDir, `tts-script-${Date.now()}-${Math.random().toString(36).substring(7)}.py`);
     
-    return new Promise<NextResponse>((resolve) => {
+    return new Promise<NextResponse>((resolve, reject) => {
       try {
         // Write Python script to temporary file
         fs.writeFileSync(pythonFile, pythonScript);
@@ -164,7 +164,7 @@ except Exception as e:
               }
             } catch {}
 
-            return resolve(NextResponse.json(
+            return reject(NextResponse.json(
               { 
                 error: 'TTS generation failed', 
                 details: errorMsg.includes('not installed') || errorMsg.includes('ImportError')
@@ -177,7 +177,7 @@ except Exception as e:
 
           // Check if audio file was created
           if (!fs.existsSync(audioFile)) {
-            return resolve(NextResponse.json(
+            return reject(NextResponse.json(
               { error: 'Audio file was not generated' },
               { status: 500 }
             ));
@@ -203,7 +203,7 @@ except Exception as e:
               }
             } catch {}
 
-            resolve(NextResponse.json(
+            reject(NextResponse.json(
               { error: 'Failed to read audio file', details: readError.message },
               { status: 500 }
             ));
@@ -225,7 +225,7 @@ except Exception as e:
           const errorMessage = err.message.includes('spawn') 
             ? 'Python not found. Please ensure Python is installed and available in PATH.'
             : err.message;
-          resolve(NextResponse.json(
+          reject(NextResponse.json(
             { error: 'Failed to start TTS process', details: errorMessage },
             { status: 500 }
           ));
@@ -241,7 +241,7 @@ except Exception as e:
           }
         } catch {}
 
-        resolve(NextResponse.json(
+        reject(NextResponse.json(
           { error: 'Failed to create TTS script', details: error.message },
           { status: 500 }
         ));

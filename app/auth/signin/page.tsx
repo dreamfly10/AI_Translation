@@ -4,10 +4,12 @@ import { signIn, getProviders } from 'next-auth/react';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,9 +50,9 @@ function SignInContent() {
       if (result?.error) {
         // Check if it's a real error or just NextAuth being weird
         if (result.error === 'CredentialsSignin') {
-          setError('Invalid email or password');
+          setError(t('auth.invalidEmailOrPassword'));
         } else {
-          setError(`Sign in failed: ${result.error}`);
+          setError(`${t('auth.signInFailed')}: ${result.error}`);
         }
         setLoading(false);
         return;
@@ -71,7 +73,7 @@ function SignInContent() {
       }, 500);
     } catch (err) {
       console.error('Sign in error:', err);
-      setError('An error occurred during sign in. Please try again.');
+      setError(t('auth.errorOccurred'));
       setLoading(false);
     }
   };
@@ -79,19 +81,19 @@ function SignInContent() {
   return (
     <div className="container" style={{ maxWidth: '440px', margin: '4rem auto', paddingTop: 'var(--spacing-3xl)' }}>
       <div className="card">
-        <h1 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)' }}>Sign In</h1>
+        <h1 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)' }}>{t('auth.signIn')}</h1>
 
         <form onSubmit={handleCredentialsSignIn} style={{ marginTop: 'var(--spacing-lg)' }}>
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t('auth.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t('auth.password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -127,7 +129,7 @@ function SignInContent() {
               }
             }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? t('auth.signingIn') : t('auth.signIn')}
           </button>
           {error && (
             <div style={{ 
@@ -145,7 +147,7 @@ function SignInContent() {
 
         {googleEnabled && (
           <div style={{ marginTop: 'var(--spacing-xl)', textAlign: 'center' }}>
-            <div style={{ margin: 'var(--spacing-lg) 0', color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>or</div>
+            <div style={{ margin: 'var(--spacing-lg) 0', color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>{t('auth.or')}</div>
             <button
               className="secondary"
               onClick={() => {
@@ -155,7 +157,7 @@ function SignInContent() {
               }}
               style={{ width: '100%' }}
             >
-              Sign In with Google
+              {t('auth.signInWithGoogle')}
             </button>
           </div>
         )}
@@ -170,7 +172,7 @@ function SignInContent() {
           onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary-hover)'}
           onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
           >
-            ← Back to home
+            {t('auth.backToHome')}
           </Link>
         </div>
       </div>

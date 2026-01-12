@@ -1,14 +1,31 @@
 /**
- * YouTube Video Transcript Extraction
- * Uses youtube-transcript package to fetch captions directly (no audio download)
- * This approach works on Vercel and doesn't require ffmpeg or yt-dlp
+ * YouTube Video Transcript Extraction (Reliable)
+ *
+ * Strategy 1: Captions via `youtube-transcript` package (fast, free if captions exist)
+ * Strategy 2: Whisper fallback via external Railway worker (yt-dlp + Whisper) (reliable)
+ *
+ * Notes:
+ * - This file runs server-side (Node runtime).
+ * - Whisper fallback requires env var: YOUTUBE_WHISPER_WORKER_URL
+ *   Example: https://youtube-whisper-worker-production.up.railway.app
  */
+
+import { YoutubeTranscript } from "youtube-transcript";
+
+/**
+ * Optional debug toggles (string "1" to enable)
+ * - YT_FORCE_CAPTIONS_ONLY=1  -> only run Strategy 1
+ * - YT_FORCE_WHISPER_ONLY=1   -> only run Strategy 2
+ */
+function envFlag(name: string): boolean {
+  return (process.env[name] || "").trim() === "1";
+}
 
 /**
  * Check if a URL is a YouTube URL
  */
 export function isYouTubeUrl(url: string): boolean {
-  return url.includes('youtube.com') || url.includes('youtu.be');
+  return url.includes("youtube.com") || url.includes("youtu.be");
 }
 
 /**
@@ -17,37 +34,34 @@ export function isYouTubeUrl(url: string): boolean {
 export function normalizeYouTubeUrl(url: string): string {
   try {
     let normalized = url.trim();
-    
+
     // Remove trailing incomplete parameters like &t= (with no value)
-    normalized = normalized.replace(/[&?]t=\s*$/i, '');
-    
-    // Try to parse as URL to validate
+    normalized = normalized.replace(/[&?]t=\s*$/i, "");
+
+    // If it's a valid URL, return as-is
     try {
-      const urlObj = new URL(normalized);
-      
-      // If no video ID in params, return normalized URL
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _urlObj = new URL(normalized);
       return normalized;
-    } catch (urlError) {
+    } catch {
       // If URL parsing fails, try regex extraction to get video ID
       const patterns = [
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
-        /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+        /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
       ];
-      
+
       for (const pattern of patterns) {
         const match = normalized.match(pattern);
         if (match && match[1]) {
-          // Reconstruct URL with just the video ID
           return `https://www.youtube.com/watch?v=${match[1]}`;
         }
       }
-      
-      // Return normalized version if we can't extract video ID
+
       return normalized;
     }
   } catch (error) {
-    console.error('Error normalizing YouTube URL:', error);
-    return url; // Return original if normalization fails
+    console.error("[YouTube Transcript] Error normalizing YouTube URL:", error);
+    return url;
   }
 }
 
@@ -59,151 +73,176 @@ export function extractYouTubeVideoId(url: string): string | null {
     const normalized = normalizeYouTubeUrl(url);
     const patterns = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
-      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
     ];
-    
+
     for (const pattern of patterns) {
       const match = normalized.match(pattern);
-      if (match && match[1]) {
-        return match[1];
-      }
+      if (match && match[1]) return match[1];
     }
-    
+
     return null;
   } catch (error) {
-    console.error('Error extracting YouTube video ID:', error);
+    console.error("[YouTube Transcript] Error extracting YouTube video ID:", error);
     return null;
   }
 }
 
 /**
- * Fetch YouTube transcript using youtube-transcript package
- * Uses dynamic import to avoid Next.js build issues
- * 
- * @param videoId - YouTube video ID
- * @param onProgress - Optional progress callback
- * @returns Transcript text or null if not available
+ * Strategy 1: captions via `youtube-transcript`
  */
-async function fetchYouTubeTranscript(
-  videoId: string,
+async function fetchTranscriptViaYoutubeTranscript(
+  videoUrl: string,
   onProgress?: (message: string) => void
 ): Promise<string | null> {
   try {
-    onProgress?.('Fetching transcript from YouTube...');
-    
-    // Dynamic import to avoid Next.js build-time issues
-    // @ts-ignore - youtube-transcript doesn't have type definitions
-    const { YoutubeTranscript } = await import('youtube-transcript');
-    
-    console.log('[YouTube Transcript] Fetching transcript for video:', videoId);
-    const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
-    
-    console.log('[YouTube Transcript] Received transcript items:', transcriptItems?.length || 0);
-    
-    if (!transcriptItems || transcriptItems.length === 0) {
-      console.log('[YouTube Transcript] No transcript items returned');
+    onProgress?.("Fetching captions from YouTube (Strategy 1)...");
+    console.log("[YouTube Transcript] Using youtube-transcript for:", videoUrl);
+
+    const segments = await YoutubeTranscript.fetchTranscript(videoUrl);
+
+    if (!Array.isArray(segments) || segments.length === 0) {
+      console.log("[YouTube Transcript] youtube-transcript returned no segments");
       return null;
     }
-    
-    // Combine all transcript items into a single text
-    const transcript = transcriptItems
-      .map((item: any) => item.text || '')
-      .filter((text: string) => text.trim().length > 0)
-      .join(' ')
+
+    const text = segments
+      .map((s: any) => (typeof s?.text === "string" ? s.text : ""))
+      .map((t: string) => t.trim())
+      .filter(Boolean)
+      .join(" ")
       .trim();
-    
-    if (transcript.length === 0) {
-      console.log('[YouTube Transcript] Transcript text is empty after processing');
+
+    if (!text || text.length < 10) {
+      console.log("[YouTube Transcript] youtube-transcript transcript too short/empty");
       return null;
     }
-    
-    console.log('[YouTube Transcript] Successfully fetched transcript, length:', transcript.length);
-    onProgress?.('Transcript fetched successfully');
-    return transcript;
+
+    console.log("[YouTube Transcript] youtube-transcript success, length:", text.length);
+    return text;
   } catch (error: any) {
-    const errorMsg = error?.message || String(error);
-    const errorStack = error?.stack || '';
-    
-    console.error('[YouTube Transcript] Full error:', {
-      message: errorMsg,
-      stack: errorStack,
-      videoId: videoId
-    });
-    
-    // Common errors that mean transcript is not available
-    if (
-      errorMsg.includes('Transcript is disabled') ||
-      errorMsg.includes('Could not retrieve a transcript') ||
-      errorMsg.includes('No transcript found') ||
-      errorMsg.includes('transcript not available') ||
-      errorMsg.includes('Transcript not available') ||
-      errorMsg.includes('unavailable') ||
-      errorMsg.includes('private') ||
-      errorMsg.includes('members-only') ||
-      errorMsg.includes('Transcripts are disabled') ||
-      errorMsg.includes('No transcripts were found') ||
-      errorMsg.includes('Could not find a transcript') ||
-      errorMsg.includes('transcriptsDisabled') ||
-      errorMsg.includes('Transcripts are turned off')
-    ) {
-      console.log('[YouTube Transcript] Transcript not available:', errorMsg);
-      return null;
-    }
-    
-    // Check for module resolution errors
-    if (
-      errorMsg.includes('Cannot find module') ||
-      errorMsg.includes('Module not found') ||
-      errorMsg.includes('Cannot resolve module') ||
-      errorStack.includes('require') && errorStack.includes('youtube-transcript')
-    ) {
-      console.error('[YouTube Transcript] Module resolution error - youtube-transcript package not found');
-      throw new Error(
-        'YouTube transcript package is not installed correctly. ' +
-        'Please ensure youtube-transcript is installed: npm install youtube-transcript'
-      );
-    }
-    
-    // Other errors (network, etc.) - log but don't fail completely
-    console.warn('[YouTube Transcript] Error fetching transcript:', errorMsg);
+    console.warn("[YouTube Transcript] youtube-transcript failed:", error?.message || String(error));
     return null;
   }
 }
 
 /**
- * Transcribe YouTube video - fetches transcript directly (captions only)
- * No audio download, no ffmpeg, no Whisper - works on Vercel
- * 
- * @param videoUrl - YouTube video URL
- * @param onProgress - Optional progress callback
- * @returns Transcript text
+ * Strategy 2: Whisper fallback via Railway worker
+ *
+ * IMPORTANT:
+ * - Your Python worker expects JSON: { "videoUrl": "<full youtube url>" }
+ *   NOT { "videoId": "..." }
+ */
+async function fetchTranscriptViaWhisperWorker(
+  videoUrl: string,
+  onProgress?: (message: string) => void
+): Promise<string | null> {
+  try {
+    const workerUrl = (process.env.YOUTUBE_WHISPER_WORKER_URL || "").trim();
+    if (!workerUrl) {
+      console.error("[YouTube Transcript] YOUTUBE_WHISPER_WORKER_URL is not configured");
+      return null;
+    }
+
+    onProgress?.("Captions not available — using Whisper fallback (Strategy 2)...");
+    console.log("[YouTube Transcript] Using Whisper worker:", workerUrl);
+
+    const endpoint = `${workerUrl.replace(/\/+$/, "")}/transcribe`;
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ videoUrl }), // <-- correct payload for your Python worker
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.log("[YouTube Transcript] Whisper worker response not ok:", res.status, res.statusText, body);
+      return null;
+    }
+
+    const data: any = await res.json().catch(() => null);
+    const transcript = typeof data?.transcript === "string" ? data.transcript.trim() : "";
+
+    if (!transcript || transcript.length < 10) {
+      console.log("[YouTube Transcript] Whisper worker returned empty/too short transcript");
+      return null;
+    }
+
+    console.log("[YouTube Transcript] Whisper worker success, length:", transcript.length);
+    return transcript;
+  } catch (error: any) {
+    console.error("[YouTube Transcript] Whisper worker error:", error?.message || String(error));
+    return null;
+  }
+}
+
+/**
+ * Main: try captions first, then Whisper worker (unless forced)
+ */
+async function fetchYouTubeTranscript(
+  videoUrl: string,
+  onProgress?: (message: string) => void
+): Promise<string | null> {
+  const FORCE_CAPTIONS_ONLY = envFlag("YT_FORCE_CAPTIONS_ONLY");
+  const FORCE_WHISPER_ONLY = envFlag("YT_FORCE_WHISPER_ONLY");
+
+  console.log("[YouTube Transcript] Starting fetch for:", videoUrl, {
+    FORCE_CAPTIONS_ONLY,
+    FORCE_WHISPER_ONLY,
+  });
+
+  if (FORCE_CAPTIONS_ONLY) {
+    onProgress?.("[YT TEST] Strategy 1 ONLY (captions)");
+    return await fetchTranscriptViaYoutubeTranscript(videoUrl, onProgress);
+  }
+
+  if (FORCE_WHISPER_ONLY) {
+    onProgress?.("[YT TEST] Strategy 2 ONLY (whisper worker)");
+    return await fetchTranscriptViaWhisperWorker(videoUrl, onProgress);
+  }
+
+  // Strategy 1: captions
+  const captions = await fetchTranscriptViaYoutubeTranscript(videoUrl, onProgress);
+  if (captions) return captions;
+
+  // Strategy 2: Whisper fallback (worker)
+  const whisper = await fetchTranscriptViaWhisperWorker(videoUrl, onProgress);
+  if (whisper) return whisper;
+
+  console.log("[YouTube Transcript] All strategies failed - transcript not available");
+  return null;
+}
+
+/**
+ * Public API used by your app
  */
 export async function transcribeYouTubeVideo(
   videoUrl: string,
   onProgress?: (message: string) => void
 ): Promise<string> {
-  // Normalize and clean the URL first
+  console.log("[YT PIPELINE] ✅ Using lib/youtube-transcript.ts (captions + railway fallback)");
+  console.log("[YT PIPELINE] Worker URL =", process.env.YOUTUBE_WHISPER_WORKER_URL || "(missing)");
+
   const normalizedUrl = normalizeYouTubeUrl(videoUrl);
-  
-  // Extract video ID for validation
+
   const videoId = extractYouTubeVideoId(normalizedUrl);
-  if (!videoId) {
-    throw new Error('Invalid YouTube URL. Could not extract video ID.');
-  }
+  if (!videoId) throw new Error("Invalid YouTube URL. Could not extract video ID.");
 
-  // Fetch transcript directly (captions only - no audio download)
-  onProgress?.('Checking for available transcript...');
-  const transcript = await fetchYouTubeTranscript(videoId, onProgress);
-  
-  if (transcript && transcript.length > 0) {
-    console.log('[YouTube Transcript] Successfully fetched transcript');
-    return transcript;
-  }
+  console.log("[YouTube Transcript] Processing video:", {
+    originalUrl: videoUrl,
+    normalizedUrl,
+    videoId,
+  });
 
-  // Transcript not available - show helpful error message
+  onProgress?.("Checking for available transcript...");
+  const transcript = await fetchYouTubeTranscript(normalizedUrl, onProgress);
+
+  if (transcript && transcript.length > 0) return transcript;
+
   throw new Error(
-    'Transcript is not available for this video. ' +
-    'The video may not have captions enabled, or they may be disabled by the creator. ' +
-    'Please use the "Raw Text" tab to paste the transcript manually.'
+    "Transcript is not available for this video. " +
+      "Captions may be disabled, or YouTube blocked transcript requests. " +
+      "If Whisper fallback is not configured, set YOUTUBE_WHISPER_WORKER_URL."
   );
 }

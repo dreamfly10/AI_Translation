@@ -74,7 +74,7 @@ function HomeContent() {
                   border: '1px solid var(--color-border)'
                 }}
               >
-                Log In
+                {t('auth.logIn')}
               </button>
               <button 
                 onClick={() => setShowGetStarted(true)}
@@ -89,7 +89,7 @@ function HomeContent() {
                   fontWeight: 500
                 }}
               >
-                Get Started
+                {t('auth.getStarted')}
               </button>
             </div>
           )}
@@ -170,7 +170,7 @@ function HomeContent() {
                         e.currentTarget.style.transform = 'scale(1)';
                       }}
                     >
-                      Get Started
+                      {t('auth.getStarted')}
                     </button>
                   </div>
                 </div>
@@ -334,7 +334,32 @@ function HomeContent() {
               <p style={{ fontSize: '1.125rem', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xl)', maxWidth: '600px', margin: '0 auto var(--spacing-xl)' }}>
                 {t('home.cta.description')}
               </p>
-              <AuthButtons session={session} variant="default" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setShowGetStarted(true)}
+                  style={{
+                    padding: 'var(--spacing-lg) var(--spacing-2xl)',
+                    background: 'var(--color-background-secondary)',
+                    color: 'var(--color-text-primary)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '1.25rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-base)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '0.9';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '1';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  {t('auth.getStarted')}
+                </button>
+              </div>
             </section>
           </>
         )}
