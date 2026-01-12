@@ -1181,7 +1181,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           </div>
                         </div>
                         
-                        {periodStart && periodEnd && (
+                        {periodStart && periodEnd && periodStart.getTime() !== periodEnd.getTime() && (
                           <div style={{ 
                             marginTop: 'var(--spacing-sm)',
                             paddingTop: 'var(--spacing-sm)',

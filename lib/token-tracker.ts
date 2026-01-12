@@ -33,34 +33,45 @@ export async function checkTokenLimit(userId: string): Promise<{
   }
 
   // Enforce correct token limits based on user type
-  // Paid users should always have 100k tokens, regardless of what's stored in DB
   const isTrialUser = user.userType === 'trial';
   const isPaidUser = user.userType === 'paid';
   
   // Set the correct limit based on user type
-  const correctLimit = isPaidUser ? 100000 : 5000; // 100k for paid, 5k for trial
+  // For paid users, minimum is 100k, but allow higher limits (for transferred trial tokens)
+  const minimumPaidLimit = 100000; // 100k minimum for paid users
+  const trialLimit = 5000; // 5k for trial users
   
-  // If the stored limit doesn't match the correct limit, update it
-  // This ensures existing paid users are migrated to the new limit
-  if (user.tokenLimit !== correctLimit) {
-    try {
-      // If user has used more tokens than the new limit allows, cap tokensUsed
-      let tokensUsedToStore = user.tokensUsed;
-      if (tokensUsedToStore > correctLimit) {
-        tokensUsedToStore = correctLimit;
-        console.log(`User ${userId} had ${user.tokensUsed} tokens used, capping to ${correctLimit} for new limit`);
+  let correctLimit: number;
+  if (isPaidUser) {
+    // For paid users, use stored limit if >= 100k, otherwise use 100k
+    correctLimit = user.tokenLimit >= minimumPaidLimit ? user.tokenLimit : minimumPaidLimit;
+    
+    // Migrate existing paid users to minimum 100k if they have less
+    if (user.tokenLimit < minimumPaidLimit) {
+      try {
+        await db.user.update(userId, {
+          tokenLimit: minimumPaidLimit,
+        });
+        user.tokenLimit = minimumPaidLimit;
+      } catch (error) {
+        console.error('Error updating user token limit:', error);
       }
-      
-      await db.user.update(userId, {
-        tokenLimit: correctLimit,
-        tokensUsed: tokensUsedToStore,
-      });
-      // Update user object for current calculation
-      user.tokenLimit = correctLimit;
-      user.tokensUsed = tokensUsedToStore;
-    } catch (error) {
-      console.error('Error updating user token limit:', error);
-      // Continue with current limit if update fails, but use correct limit for calculation
+    }
+  } else {
+    // For trial users, minimum is 5k, but allow higher limits (for purchased tokens)
+    correctLimit = user.tokenLimit >= trialLimit ? user.tokenLimit : trialLimit;
+    
+    // Migrate trial users to minimum 5k if they have less
+    if (user.tokenLimit < trialLimit) {
+      try {
+        await db.user.update(userId, {
+          tokenLimit: trialLimit,
+        });
+        user.tokenLimit = trialLimit;
+        correctLimit = trialLimit;
+      } catch (error) {
+        console.error('Error updating user token limit:', error);
+      }
     }
   }
   

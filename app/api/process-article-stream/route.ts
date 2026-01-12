@@ -240,10 +240,11 @@ export async function POST(request: Request) {
         
         // Check token limit BEFORE processing
         const preCheckTokenStatus = await checkTokenLimit(session.user.id);
-        if (preCheckTokenStatus.userType === 'trial' && preCheckTokenStatus.tokensRemaining < estimatedTotalTokens) {
+        if (preCheckTokenStatus.tokensRemaining < estimatedTotalTokens) {
           sendSSE(controller, 'error', {
             error: 'INSUFFICIENT_TOKENS',
-            message: `This operation requires approximately ${estimatedTotalTokens.toLocaleString()} tokens, but you only have ${preCheckTokenStatus.tokensRemaining.toLocaleString()} tokens remaining. Please upgrade to continue.`,
+            message: `This operation requires approximately ${estimatedTotalTokens.toLocaleString()} tokens, but you only have ${preCheckTokenStatus.tokensRemaining.toLocaleString()} tokens remaining. Please purchase more tokens or upgrade to continue.`,
+            userMessage: `You don't have enough tokens for this operation. You need approximately ${estimatedTotalTokens.toLocaleString()} tokens, but only have ${preCheckTokenStatus.tokensRemaining.toLocaleString()} tokens remaining. Please purchase more tokens or upgrade your plan.`,
             tokensUsed: preCheckTokenStatus.tokensUsed,
             limit: preCheckTokenStatus.limit,
             tokensRemaining: preCheckTokenStatus.tokensRemaining,
@@ -346,10 +347,11 @@ export async function POST(request: Request) {
           return;
         }
         
-        if (finalTokenStatus.userType === 'trial' && finalTokenStatus.tokensRemaining < totalTokens) {
+        if (finalTokenStatus.tokensRemaining < totalTokens) {
           sendSSE(controller, 'error', {
             error: 'INSUFFICIENT_TOKENS',
-            message: `This operation requires ${totalTokens.toLocaleString()} tokens, but you only have ${finalTokenStatus.tokensRemaining.toLocaleString()} tokens remaining. Please upgrade to continue.`,
+            message: `This operation requires ${totalTokens.toLocaleString()} tokens, but you only have ${finalTokenStatus.tokensRemaining.toLocaleString()} tokens remaining. Please purchase more tokens or upgrade to continue.`,
+            userMessage: `You don't have enough tokens for this operation. You need ${totalTokens.toLocaleString()} tokens, but only have ${finalTokenStatus.tokensRemaining.toLocaleString()} tokens remaining. Please purchase more tokens or upgrade your plan.`,
             tokensUsed: finalTokenStatus.tokensUsed,
             limit: finalTokenStatus.limit,
             tokensRemaining: finalTokenStatus.tokensRemaining,
