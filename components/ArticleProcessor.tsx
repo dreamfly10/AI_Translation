@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { parseError, AppError } from '@/lib/error-handler';
+import { sanitizeError, AppError } from '@/lib/error-handler';
 import SubscriptionRequired from './SubscriptionRequired';
-import { StyleArchetype, RewritingLevel, styleArchetypes, getDefaultStyle } from '@/lib/prompt-styles';
+import { StyleArchetype, RewritingLevel, styleArchetypes, getDefaultStyle, getAllDefaultStyles } from '@/lib/prompt-styles';
 import { getSession } from 'next-auth/react';
 import { exportContent, ExportFormat } from '@/lib/export-utils';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -110,6 +110,7 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
   const [voiceProfiles, setVoiceProfiles] = useState<any[]>([]);
   const [rewritingLevel, setRewritingLevel] = useState<RewritingLevel>('medium');
   const [targetLanguage, setTargetLanguage] = useState<string>('zh');
+  const [enabledThinkingStyles, setEnabledThinkingStyles] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ProcessResult | null>(null);
   const [error, setError] = useState<AppError | null>(null);
@@ -208,9 +209,17 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
           if (data.defaultTargetLanguage) {
             setTargetLanguage(data.defaultTargetLanguage);
           }
+          if (data.enabledThinkingStyles) {
+            setEnabledThinkingStyles(data.enabledThinkingStyles);
+          } else {
+            // Default: all styles enabled
+            setEnabledThinkingStyles(getAllDefaultStyles());
+          }
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
+        // Default: all styles enabled on error
+        setEnabledThinkingStyles(getAllDefaultStyles());
       }
     };
     loadPreferences();
@@ -485,8 +494,13 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
     let timeoutCheck: NodeJS.Timeout | null = null;
     let isProcessing = true;
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    let fetchTimeoutId: NodeJS.Timeout | null = null;
 
     try {
+      // Add timeout to fetch
+      const controller = new AbortController();
+      fetchTimeoutId = setTimeout(() => controller.abort(), 15 * 60 * 1000); // 15 min
+
       const response = await fetch('/api/process-article-stream', {
         method: 'POST',
         headers: {
@@ -500,25 +514,32 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
           voiceProfileId: voiceProfileId || undefined,
           targetLanguage: targetLanguage || 'zh',
         }),
+        signal: controller.signal,
       });
 
+      if (fetchTimeoutId) {
+        clearTimeout(fetchTimeoutId);
+        fetchTimeoutId = null;
+      }
+
       if (!response.ok) {
-        const text = await response.text();
         let errorData: any = null;
         try {
-          errorData = JSON.parse(text);
+          const text = await response.text();
+          try {
+            errorData = JSON.parse(text);
+          } catch {
+            // Malformed JSON - use generic error
+            errorData = { code: 'UNKNOWN_ERROR' };
+          }
         } catch {
-          const parsedError = parseError({ 
-            message: text.substring(0, 200) || 'An unexpected error occurred',
-            error: 'UNKNOWN_ERROR'
-          });
-          setError(parsedError);
-          setLoading(false);
-          return;
+          // Network error or empty response
+          errorData = { code: 'NETWORK_ERROR' };
         }
         
-        const parsedError = parseError(errorData);
-        setError(parsedError);
+        // Always sanitize - never show raw error
+        const sanitized = sanitizeError(errorData, 'API Response');
+        setError(sanitized);
         setLoading(false);
         return;
       }
@@ -693,13 +714,14 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 });
                 // Don't stop processing - results are still available
               } else if (currentEvent === 'error') {
-                const parsedError = parseError(data);
+                // Sanitize all errors - never show backend details
+                const sanitized = sanitizeError(data, 'SSE Error Event');
                 
-                if (parsedError.code === 'SUBSCRIPTION_REQUIRED' && inputType === 'url') {
+                if (sanitized.code === 'SUBSCRIPTION_REQUIRED' && inputType === 'url') {
                   setSubscriptionUrl(content);
                   setError(null);
                 } else {
-                  setError(parsedError);
+                  setError(sanitized);
                 }
                 isProcessing = false; // Mark processing as stopped
                 setLoading(false);
@@ -738,10 +760,27 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         // Reader may already be closed, ignore error
       }
       setLoading(false);
-    } catch (err) {
-      console.error('Process article error:', err);
-      const parsedError = parseError(err);
-      setError(parsedError);
+    } catch (err: any) {
+      // Clear fetch timeout if error occurs
+      if (fetchTimeoutId) {
+        clearTimeout(fetchTimeoutId);
+        fetchTimeoutId = null;
+      }
+
+      // Handle abort (timeout)
+      if (err.name === 'AbortError') {
+        setError({
+          code: 'NETWORK_ERROR',
+          message: 'Request timeout',
+          userMessage: 'The request took too long. Please try again with a shorter article.',
+          actionable: 'Try a shorter article or check your connection',
+          statusCode: 408,
+        });
+      } else {
+        // All other errors are sanitized - never show backend details
+        const sanitized = sanitizeError(err, 'Article Processing');
+        setError(sanitized);
+      }
       setLoading(false);
       setStreamingTranslation('');
       setStreamingInsights('');
@@ -1241,13 +1280,9 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
               cursor: 'pointer'
             }}
           >
-            {Object.entries(styleArchetypes).map(([key, config]) => (
-              <option key={key} value={key}>
-                {language === 'en' ? config.nameEn : config.name}
-              </option>
-            ))}
+            {/* Custom voice profiles always shown first */}
             {voiceProfiles.length > 0 && (
-              <optgroup label={language === 'en' ? 'Author Profile' : '作者档案'}>
+              <optgroup label={language === 'en' ? 'Your Thinking Styles' : '您的思维风格'}>
                 {voiceProfiles.map((profile) => (
                   <option key={profile.id} value={`voice_${profile.id}`}>
                     🎤 {profile.name}
@@ -1255,6 +1290,19 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 ))}
               </optgroup>
             )}
+            {/* Default styles filtered by user preferences */}
+            {Object.entries(styleArchetypes)
+              .filter(([key]) => {
+                // If enabledThinkingStyles is null, show all (default)
+                if (enabledThinkingStyles === null) return true;
+                // Otherwise, only show enabled styles
+                return enabledThinkingStyles.includes(key);
+              })
+              .map(([key, config]) => (
+                <option key={key} value={key}>
+                  {language === 'en' ? config.nameEn : config.name}
+                </option>
+              ))}
           </select>
         </div>
 

@@ -13,11 +13,12 @@ export interface User {
   subscriptionExpiresAt?: Date | string;
   paymentId?: string;
   // User preferences
-  defaultWritingStyle?: 'warmBookish' | 'lifeReflection' | 'contrarian' | 'education' | 'science' | null;
+  defaultWritingStyle?: 'warmBookish' | 'lifeReflection' | 'contrarian' | 'education' | 'science' | 'editorialColumn' | 'impactDecoder' | 'neutralBrief' | null;
   defaultExpressionVariation?: 'light' | 'medium' | 'heavy';
   defaultTargetLanguage?: 'zh' | 'en' | 'es' | 'fr' | 'de' | 'ja' | 'ko' | 'pt' | 'it' | 'ru' | 'ar';
   showLanguageToggle?: boolean;
   defaultUILanguage?: 'en' | 'zh';
+  enabledThinkingStyles?: string[]; // Array of StyleArchetype keys
   createdAt: Date | string;
   updatedAt?: Date | string;
 }
@@ -133,6 +134,7 @@ export const db = {
       if (data.defaultTargetLanguage !== undefined) updateData.default_target_language = data.defaultTargetLanguage;
       if (data.showLanguageToggle !== undefined) updateData.show_language_toggle = data.showLanguageToggle;
       if (data.defaultUILanguage !== undefined) updateData.default_ui_language = data.defaultUILanguage;
+      if (data.enabledThinkingStyles !== undefined) updateData.enabled_thinking_styles = data.enabledThinkingStyles;
 
       const { data: user, error } = await supabaseServer
         .from('users')
@@ -170,6 +172,7 @@ export const db = {
         defaultTargetLanguage: row.default_target_language || 'zh',
         showLanguageToggle: row.show_language_toggle !== undefined ? row.show_language_toggle : true,
         defaultUILanguage: row.default_ui_language || 'en',
+        enabledThinkingStyles: (row.enabled_thinking_styles as string[]) || null,
         createdAt: row.created_at ? new Date(row.created_at) : new Date(),
         updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
       };

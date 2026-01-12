@@ -30,11 +30,12 @@
 - `image` (TEXT, nullable)
 - `user_type` (TEXT, NOT NULL, DEFAULT 'trial') - CHECK constraint: 'trial' | 'paid'
 - `tokens_used` (BIGINT, NOT NULL, DEFAULT 0)
-- `token_limit` (BIGINT, NOT NULL, DEFAULT 1000) - 1k tokens for trial users
+- `token_limit` (BIGINT, NOT NULL, DEFAULT 5000) - 5k tokens for trial users
 - `subscription_status` (TEXT, nullable) - CHECK constraint: 'active' | 'expired' | 'cancelled'
 - `subscription_expires_at` (TIMESTAMPTZ, nullable)
 - `payment_id` (TEXT, nullable) - Stripe customer ID
-- `default_writing_style` (TEXT, nullable) - CHECK constraint: 'warmBookish' | 'lifeReflection' | 'contrarian' | 'education' | 'science'
+- `default_writing_style` (TEXT, nullable) - CHECK constraint: 'warmBookish' | 'lifeReflection' | 'contrarian' | 'education' | 'science' | 'editorialColumn' | 'impactDecoder' | 'neutralBrief'
+- `enabled_thinking_styles` (JSONB, nullable) - Array of enabled default thinking style keys, defaults to all 8 styles
 - `default_expression_variation` (TEXT, nullable) - CHECK constraint: 'light' | 'medium' | 'heavy'
 - `default_target_language` (TEXT, DEFAULT 'zh') - CHECK constraint: 'zh' | 'en' | 'es' | 'fr' | 'de' | 'ja' | 'ko' | 'pt' | 'it' | 'ru' | 'ar'
 - `show_language_toggle` (BOOLEAN, DEFAULT true)
@@ -66,7 +67,7 @@
 - `original_content` (TEXT, NOT NULL) - Original article content
 - `translated_content` (TEXT, NOT NULL) - Translated content
 - `insights` (TEXT, NOT NULL) - Generated insights
-- `style` (TEXT, nullable) - CHECK constraint: 'warmBookish' | 'lifeReflection' | 'contrarian' | 'education' | 'science'
+- `style` (TEXT, nullable) - CHECK constraint: 'warmBookish' | 'lifeReflection' | 'contrarian' | 'education' | 'science' | 'editorialColumn' | 'impactDecoder' | 'neutralBrief'
 - `target_language` (TEXT, DEFAULT 'zh') - CHECK constraint: 'zh' | 'en' | 'es' | 'fr' | 'de' | 'ja' | 'ko' | 'pt' | 'it' | 'ru' | 'ar'
 - `tokens_used` (INTEGER, NOT NULL, DEFAULT 0)
 - `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
@@ -94,6 +95,8 @@
 - `do_list` (TEXT[], nullable) - Things to do in writing
 - `dont_list` (TEXT[], nullable) - Things to avoid
 - `style_rules` (JSONB, nullable) - Extracted style characteristics (tone, patterns, avoid list)
+- `custom_prompt` (TEXT, nullable) - Custom prompt/instructions provided by user for style generation
+- `profile_type` (TEXT, DEFAULT 'samples') - CHECK constraint: 'samples' | 'prompt' | 'both'
 - `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
 - `updated_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
 
@@ -116,7 +119,7 @@
 - `id` (UUID, PRIMARY KEY) - Auto-generated
 - `voice_profile_id` (UUID, NOT NULL, FOREIGN KEY → voice_profiles.id, ON DELETE CASCADE)
 - `content` (TEXT, NOT NULL) - Writing sample content
-- `word_count` (INTEGER, nullable) - Word count of sample
+- `word_count` (INTEGER, nullable) - Word count of sample (optional, no longer required)
 - `platform` (TEXT, nullable) - Source platform (e.g., "blog", "article")
 - `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
 
@@ -130,7 +133,8 @@
 - Users can delete own voice samples (DELETE) - via voice_profiles.user_id
 
 **Constraints**:
-- Minimum 3 samples per profile (enforced in application logic)
+- No minimum sample requirement (flexible sample count)
+- Word count validation removed (no mandatory word limits)
 
 ---
 
@@ -141,7 +145,7 @@
 #### `POST /api/auth/register`
 - **File**: `app/api/auth/register/route.ts`
 - **Dependencies**: `lib/db.ts`, `lib/auth.ts`
-- **Creates**: New user in `users` table with `userType: 'trial'`, `tokenLimit: 1000`
+- **Creates**: New user in `users` table with `userType: 'trial'`, `tokenLimit: 5000`
 - **Returns**: User object or error
 
 #### `GET/POST /api/auth/[...nextauth]`
@@ -255,9 +259,23 @@
 #### `POST /api/voice-profiles`
 - **File**: `app/api/voice-profiles/route.ts`
 - **Dependencies**: `lib/auth.ts`, `lib/db.ts`, `zod`
-- **Request Body**: `{ name: string, samples: string[], doList?: string[], dontList?: string[] }`
-- **Creates**: Voice profile and associated samples
-- **Returns**: Created profile with samples
+- **Request Body**: 
+  ```json
+  {
+    "name": "string",
+    "samples": "string[]" (optional),
+    "customPrompt": "string" (optional),
+    "profileType": "samples" | "prompt" | "both" (optional, default: "samples"),
+    "doList": "string[]" (optional),
+    "dontList": "string[]" (optional)
+  }
+  ```
+- **Features**:
+  - Supports three profile types: samples-only, prompt-only, or both
+  - No mandatory sample count or word limits
+  - Custom prompt can be used instead of or alongside samples
+- **Creates**: Voice profile and associated samples (if provided)
+- **Returns**: Created profile with samples (if applicable)
 
 #### `GET /api/voice-profiles/[id]`
 - **File**: `app/api/voice-profiles/[id]/route.ts`
@@ -277,31 +295,26 @@
 - **File**: `app/api/voice-profiles/[id]/extract-style/route.ts`
 - **Dependencies**: `lib/auth.ts`, `lib/db.ts`, `lib/openai.ts`
 - **Features**:
-  - Validates minimum 3 samples
-  - Combines samples for analysis
+  - Skips extraction if `profileType === 'prompt'` (uses custom prompt directly)
+  - Validates minimum 1 sample for 'samples' or 'both' profile types
+  - Combines samples for analysis (if applicable)
   - Uses OpenAI to extract style rules (tone, patterns, avoid list)
   - Validates and parses JSON response
-  - Updates profile with extracted rules
-- **Returns**: Updated profile with style rules
+  - Updates profile with extracted rules or custom prompt
+- **Returns**: Updated profile with style rules or custom prompt
 
 #### `POST /api/voice-profiles/upload`
 - **File**: `app/api/voice-profiles/upload/route.ts`
-- **Dependencies**: `lib/auth.ts`
-- **Request**: FormData with `file` field
-- **Features**:
-  - Reads file content
-  - Validates word count (200-8000 words)
-  - Supports non-English content (character-based counting)
-  - Handles read errors and empty files
-- **Returns**: `{ content: string, wordCount: number, fileName: string }`
+- **Status**: ⚠️ **DEPRECATED** - File upload support removed, users now input text directly
+- **Note**: File upload functionality has been removed. Users paste text directly into textboxes.
 
 #### `DELETE /api/voice-samples/[id]`
 - **File**: `app/api/voice-samples/[id]/route.ts`
 - **Dependencies**: `lib/auth.ts`, `lib/db.ts`
 - **Features**:
   - Verifies user ownership
-  - Enforces minimum 3 samples per profile
-  - Prevents deletion if it would leave < 3 samples
+  - No minimum sample requirement (flexible deletion)
+  - Allows deletion of any sample
 - **Event**: Dispatches `voiceProfileUpdated` custom event
 
 ### User Preferences Routes
@@ -309,15 +322,16 @@
 #### `GET /api/user-preferences`
 - **File**: `app/api/user-preferences/route.ts`
 - **Dependencies**: `lib/auth.ts`, `lib/db.ts`
-- **Returns**: User preferences (defaultWritingStyle, defaultExpressionVariation, defaultTargetLanguage, showLanguageToggle, defaultUILanguage)
+- **Returns**: User preferences (defaultWritingStyle, defaultExpressionVariation, defaultTargetLanguage, showLanguageToggle, defaultUILanguage, enabledThinkingStyles)
 
 #### `PUT /api/user-preferences`
 - **File**: `app/api/user-preferences/route.ts`
 - **Dependencies**: `lib/auth.ts`, `lib/db.ts`, `zod`
-- **Request Body**: Zod-validated preferences schema
+- **Request Body**: Zod-validated preferences schema (includes enabledThinkingStyles array)
 - **Features**:
   - Transforms empty strings to null
-  - Validates enum values
+  - Validates enum values (including new style options)
+  - Supports enabledThinkingStyles array for filtering dropdown options
   - Provides specific error messages for missing columns
 - **Event**: Dispatches `preferencesUpdated` custom event
 
@@ -338,6 +352,24 @@
 - **Dependencies**: `lib/auth.ts`, Resend API
 - **Sends**: Support emails via Resend
 - **Used By**: `components/SupportForm.tsx`
+
+### Text-to-Speech Routes
+
+#### `POST /api/text-to-speech`
+- **File**: `app/api/text-to-speech/route.ts`
+- **Dependencies**: `lib/auth.ts`, `@google-cloud/text-to-speech` package
+- **Request Body**: `{ text: string, language?: string }`
+- **Response**: `{ audio: string (base64), format: 'mp3' }`
+- **Features**:
+  - Uses Google Cloud Text-to-Speech API
+  - Automatically detects language (English/Chinese) from text content
+  - Dynamically selects best available voice (Neural2, Wavenet, or Standard)
+  - Returns base64-encoded MP3 audio
+  - Supports both English and Chinese voices
+- **Environment Variables**:
+  - `GOOGLE_APPLICATION_CREDENTIALS_JSON` (recommended) - Full service account JSON as string
+  - OR `GOOGLE_CLOUD_PROJECT_ID`, `GOOGLE_CLOUD_PRIVATE_KEY`, `GOOGLE_CLOUD_CLIENT_EMAIL`
+- **Used By**: `components/ArticleProcessor.tsx` (Play Audio buttons)
 
 ---
 
@@ -456,12 +488,24 @@
   - Content format validation
   - URL detection in Raw Text field
   - Progressive rendering via SSE
-  - Voice profile integration
-  - User preferences loading
-  - Expression variation selection
-  - Language selection (11 languages)
+  - Voice profile integration (Thinking Style dropdown)
+  - Custom voice profiles always appear first in dropdown (under "Your Thinking Styles")
+  - Default thinking styles filtered by user preferences (enabledThinkingStyles)
+  - User preferences loading (including enabledThinkingStyles)
+  - Degree of Rewriting selection (Low/Medium/High)
+  - Output Language selection (11 languages) with helptip
+  - Dynamic button labels: "Analyze Article" (URL), "Analyze Text" (Raw Text), "Analyze Video" (Video)
+  - Helptip components for title and Output Language
+  - Text-to-Speech audio playback (Play Audio buttons)
+  - Audio controls (play/pause, replay, speed adjustment)
   - Race condition prevention
   - Timeout handling (15 minutes)
+- **UI Labels**:
+  - Title: "Start with a link, text, or video" (with helptip: "Expression Copilot reads across formats before rewriting.")
+  - "Thinking Style" (formerly "Writing Style")
+  - "Degree of Rewriting" (formerly "Expression Variation"): Low (preserve structure), Medium (reframe & reorganize), High (reinterpret ideas)
+  - "Output Language" (formerly "Language Selection") with helptip: "Meaning preserved, structure adapted."
+  - Placeholders: URL ("Paste an article link. We'll extract meaning, not just text."), Video ("Supports videos with captions. We analyze the transcript, not the visuals.")
 - **Events**: Listens for `voiceProfileUpdated`, `preferencesUpdated`
 
 #### `components/SettingsModal.tsx`
@@ -482,8 +526,12 @@
   - Subscription (with date range, cancel button)
   - Payment History (invoices with download links)
   - Author Profile (voice profiles management)
-  - Preferences (default settings)
-- **Features**: Dispatches `voiceProfileUpdated` and `preferencesUpdated` events
+  - Preferences (default settings, including enabled thinking styles)
+- **Features**: 
+  - Dispatches `voiceProfileUpdated` and `preferencesUpdated` events
+  - Checkbox UI for enabling/disabling default thinking styles
+  - Shows all 8 default styles with toggle checkboxes
+  - Saves enabledThinkingStyles preference to database
 
 #### `components/VoiceProfileModal.tsx`
 - **Dependencies**:
@@ -491,10 +539,11 @@
   - `/api/voice-profiles/[id]/extract-style` (POST)
   - `/api/voice-profiles/upload` (POST)
 - **Features**:
-  - Multi-step flow (name → samples → extraction → review)
-  - File upload and text paste
-  - Sample validation (3-10 samples, 200-800 words)
-  - Style extraction progress
+  - Multi-step flow (name → samples/prompt → extraction → review)
+  - Text input only (file upload removed)
+  - Flexible sample count (no mandatory minimum)
+  - Custom prompt support (prompt-only, samples-only, or both)
+  - Style extraction progress (for sample-based profiles)
   - Dispatches `voiceProfileUpdated` event
 
 #### `components/AutoSignOut.tsx`
@@ -601,25 +650,30 @@
 - **Models**: GPT-4o-mini (translation), GPT-4o (insights)
 - **Features**:
   - Markdown removal from outputs
-  - Voice profile integration
-  - Expression variation support
+  - Voice profile integration (supports custom prompts, samples, or both)
+  - Degree of Rewriting support (Low/Medium/High)
   - Multi-language prompts
 - **Used By**: `app/api/process-article-stream/route.ts`, `app/api/voice-profiles/[id]/extract-style/route.ts`
 
 #### `lib/youtube-transcript.ts`
 - **Exports**:
+  - `isYouTubeUrl(url: string)` - Checks if URL is a YouTube URL
+  - `normalizeYouTubeUrl(url: string)` - Normalizes YouTube URL format
   - `extractYouTubeVideoId(url: string)` - Extracts video ID from YouTube URLs
-  - `transcribeYouTubeVideo(videoUrl: string, onProgress?: (message: string) => void)` - Downloads audio and transcribes using Whisper
-- **Dependencies**: `ytdl-core`, `lib/openai.ts`
-- **Environment Variables**: `OPENAI_API_KEY` (for Whisper API)
+  - `transcribeYouTubeVideo(videoUrl: string, onProgress?: (message: string) => void)` - Fetches transcript via captions or Whisper fallback
+- **Dependencies**: `youtube-transcript` package, external Whisper worker (optional)
+- **Environment Variables**: 
+  - `YOUTUBE_WHISPER_WORKER_URL` (optional) - External Whisper worker endpoint for fallback
+  - `YT_FORCE_CAPTIONS_ONLY` (optional) - Debug flag to force captions only
+  - `YT_FORCE_WHISPER_ONLY` (optional) - Debug flag to force Whisper only
 - **Features**:
+  - Strategy 1: Uses `youtube-transcript` package to fetch captions directly
+  - Strategy 2: Falls back to external Whisper worker if captions unavailable
   - Supports multiple YouTube URL formats (youtube.com, youtu.be, embed URLs)
-  - Validates video availability and length (max 2 hours)
-  - Downloads audio using ytdl-core
-  - Transcribes using OpenAI Whisper API
   - Progress callbacks for real-time updates
+  - Automatic voice selection (best available voice for language)
 - **Limitations**:
-  - Maximum video length: 2 hours (7200 seconds)
+  - Cannot process videos without captions (unless Whisper worker configured)
   - Cannot process private or age-restricted videos
   - Requires valid YouTube video URL
 - **Used By**: `lib/content-extractor.ts`
@@ -636,15 +690,29 @@
 
 #### `lib/prompt-styles.ts`
 - **Exports**: 
-  - `StyleArchetype` type
+  - `StyleArchetype` type (8 styles total)
   - `RewritingLevel` type
   - `StyleConfig` interface
   - `styleArchetypes` object
   - `getDefaultStyle()` function
-  - `getStyleSystemPrompt(style: StyleArchetype)` function
-  - `getStyleUserPrompt(translation: string, style: StyleArchetype)` function
-- **Styles**: warmBookish (Emotional Resonance), lifeReflection, contrarian, education, science
-- **Used By**: `components/ArticleProcessor.tsx`, `components/ArticleHistory.tsx`, `lib/openai.ts`
+  - `getAllDefaultStyles()` function - Returns all default style keys
+  - `getDefaultEnabledStyles()` function - Returns default enabled styles
+  - `getStyleSystemPrompt(style: StyleArchetype)` function - Uses improved prompts
+  - `getStyleUserPrompt(translation: string, style: StyleArchetype)` function - Uses improved prompts
+- **Styles** (8 total):
+  - warmBookish (共情思维 / Empathetic Thinking) - Maps to gentleCompanion
+  - lifeReflection (反思思维 / Reflective Thinking) - Maps to practicalJudgment
+  - contrarian (批判思维 / Critical Thinking) - Maps to assumptionBreaker
+  - education (方法思维 / Methodical Thinking) - Maps to mentalModel
+  - science (科学思维 / Scientific Thinking) - Maps to epistemicClarity
+  - editorialColumn (专栏思维 / Editorial Column) - NEW
+  - impactDecoder (影响分析 / Impact Decoder) - NEW
+  - neutralBrief (中立摘要 / Neutral Brief) - NEW
+- **Features**:
+  - Improved prompts from ChatGPT with COMMON_OUTPUT_RULES and COMMON_STRUCTURE
+  - Language-agnostic prompts that adapt to output language
+  - Backward compatible with existing code
+- **Used By**: `components/ArticleProcessor.tsx`, `components/ArticleHistory.tsx`, `components/SettingsModal.tsx`, `lib/openai.ts`
 
 ### Token Management
 
@@ -684,8 +752,14 @@
 
 #### `lib/export-utils.ts`
 - **Exports**: `exportContent()`, `ExportFormat` type
-- **Formats**: 'txt' | 'md' | 'json'
+- **Formats**: 'txt' | 'md' | 'docx' | 'pdf' | 'json'
+- **Features**: Client-side file download with proper MIME types
 - **Used By**: `components/ArticleProcessor.tsx`
+
+#### `lib/mammoth.ts` (via mammoth package)
+- **Purpose**: .docx file parsing for voice profile samples
+- **Dependencies**: `mammoth` npm package
+- **Used By**: `app/api/voice-profiles/upload/route.ts` (if file upload re-enabled)
 
 ---
 
@@ -705,6 +779,18 @@ NEXTAUTH_URL=http://localhost:3000 (or production URL)
 
 # AI
 OPENAI_API_KEY=sk-...
+
+# Text-to-Speech (Google Cloud)
+GOOGLE_APPLICATION_CREDENTIALS_JSON={"type":"service_account",...} # Full JSON as string (recommended)
+# OR use individual variables:
+# GOOGLE_CLOUD_PROJECT_ID=your-project-id
+# GOOGLE_CLOUD_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# GOOGLE_CLOUD_CLIENT_EMAIL=your-service@project.iam.gserviceaccount.com
+
+# YouTube Transcript (optional)
+YOUTUBE_WHISPER_WORKER_URL=https://... # External Whisper worker endpoint for fallback
+YT_FORCE_CAPTIONS_ONLY=1 # Debug flag (optional)
+YT_FORCE_WHISPER_ONLY=1 # Debug flag (optional)
 
 # Payment (required for upgrade functionality)
 STRIPE_SECRET_KEY=sk_test_... or sk_live_...
@@ -743,7 +829,7 @@ SUPPORT_EMAIL=your-email@example.com
 - **Purpose**: Translation and insights generation, style extraction
 - **Configuration**: `lib/openai.ts`
 - **Models**: GPT-4o-mini (translation), GPT-4o (insights, style extraction)
-- **Features**: Multi-language support, voice profile integration, expression variation
+- **Features**: Multi-language support, voice profile integration (custom prompts and samples), degree of rewriting
 
 ### Stripe
 - **Purpose**: Payment processing, subscriptions, billing management
@@ -759,6 +845,12 @@ SUPPORT_EMAIL=your-email@example.com
 - **Purpose**: Authentication
 - **Configuration**: `lib/auth.ts`
 - **Providers**: Credentials, Google OAuth
+
+### Microsoft Clarity
+- **Purpose**: User analytics and behavior tracking
+- **Configuration**: `app/layout.tsx` (Script component)
+- **Features**: Automatic user session tracking, heatmaps, session recordings
+- **Integration**: Script loaded via Next.js Script component with `afterInteractive` strategy
 
 ---
 
@@ -799,19 +891,17 @@ components/SettingsModal.tsx
   → components/VoiceProfileModal.tsx
     → POST /api/voice-profiles
       → lib/db.ts (voiceProfile.create)
-        → voice_profiles table
-    → POST /api/voice-profiles/upload
-      → File processing
+        → voice_profiles table (with custom_prompt, profile_type)
     → POST /api/voice-profiles/[id]/extract-style
-      → lib/openai.ts
-        → OpenAI style extraction
+      → lib/openai.ts (if profileType !== 'prompt')
+        → OpenAI style extraction from samples
       → lib/db.ts (voiceProfile.update)
-        → voice_profiles table (style_rules)
+        → voice_profiles table (style_rules or custom_prompt)
   → Dispatches: voiceProfileUpdated event
   → components/ArticleProcessor.tsx
     → Listens: voiceProfileUpdated event
     → GET /api/voice-profiles
-      → Updates voice profile dropdown
+      → Updates Thinking Style dropdown
 ```
 
 ### Payment Flow
@@ -829,14 +919,16 @@ components/TokenUsage.tsx (UpgradeButton)
 ### Preferences Flow
 ```
 components/SettingsModal.tsx
-  → PUT /api/user-preferences
+  → PUT /api/user-preferences (includes enabledThinkingStyles)
     → lib/db.ts (user.update)
-      → users table (preference columns)
+      → users table (preference columns + enabled_thinking_styles JSONB)
   → Dispatches: preferencesUpdated event
   → components/ArticleProcessor.tsx
     → Listens: preferencesUpdated event
     → GET /api/user-preferences
       → Applies preferences to form
+      → Filters dropdown based on enabledThinkingStyles
+      → Shows custom voice profiles first, then enabled default styles
   → contexts/LanguageContext.tsx
     → Listens: preferencesUpdated event
     → Updates UI language
@@ -851,7 +943,10 @@ components/SettingsModal.tsx
 - **Text Length**: Minimum 50 characters for text input
 - **URL in Text**: Detects URLs pasted in Raw Text field, shows format error
 - **Empty Content**: Prevents processing of empty inputs
-- **YouTube Videos**: Automatically extracts and transcribes using Whisper API (max 2 hours)
+- **YouTube Videos**: Extracts transcript via captions (youtube-transcript package) or Whisper fallback
+  - Primary: Caption extraction via `youtube-transcript` package
+  - Fallback: External Whisper worker if captions unavailable
+  - No length restrictions (depends on caption availability)
 - **Zod Validation**: All API inputs validated with Zod schemas
 - **Empty String Handling**: Transforms empty strings to null for optional fields
 
@@ -872,13 +967,15 @@ components/SettingsModal.tsx
 - **Null Handling**: Proper handling of null values in preferences
 
 ### Voice Profile Management
-- **Minimum Samples**: Enforces 3-sample minimum
-- **Sample Deletion**: Prevents deletion if it would leave < 3 samples
+- **Flexible Sample Count**: No mandatory minimum sample requirement
+- **Profile Types**: Supports samples-only, prompt-only, or both
+- **Custom Prompt Validation**: Validates custom prompt is provided for prompt-based profiles
+- **Sample Deletion**: Flexible deletion (no minimum enforcement)
 - **Profile Deletion**: Clears selection in UI if deleted profile was active
-- **Style Rules Validation**: Validates structure and completeness
+- **Style Rules Validation**: Validates structure and completeness (for sample-based profiles)
 - **Empty Samples**: Validates sample content before processing
-- **File Upload Errors**: Handles read errors, empty files, format issues
-- **Non-English Content**: Character-based word counting for Chinese, Japanese, etc.
+- **Profile Type Handling**: Skips style extraction for prompt-only profiles
+- **Dropdown Priority**: Custom voice profiles always appear at the top of Thinking Style dropdown
 
 ### Article Processing
 - **Streaming Errors**: Graceful recovery from connection issues
@@ -927,6 +1024,7 @@ components/SettingsModal.tsx
 3. Update this document
 4. Test with existing queries
 5. Update `lib/db.ts` interfaces
+6. Update CHECK constraints if adding new enum values
 
 ### Error Handling Pattern
 1. Use Zod for input validation
@@ -937,6 +1035,58 @@ components/SettingsModal.tsx
 
 ---
 
-**Last Updated**: December 2024
-**Version**: 1.0.0
+**Last Updated**: January 2025
+**Version**: 1.1.0
 **Maintained By**: Development Team
+
+## Recent Updates (January 2025)
+
+### Token Limits
+- Trial users: Increased from 1,000 to 5,000 tokens
+
+### Text-to-Speech
+- Added Google Cloud Text-to-Speech API integration
+- Replaced Python edge-tts with Node.js Google Cloud TTS SDK
+- Supports English and Chinese voices
+- Dynamic voice selection (Neural2, Wavenet, or Standard)
+
+### UI/UX Improvements
+- "Writing Style" → "Thinking Style"
+- "Multimodal Content" → "Start with a link, text, or video" (with helptip)
+- "Expression Variation" → "Degree of Rewriting" with updated options:
+  - Low (preserve structure)
+  - Medium (reframe & reorganize)
+  - High (reinterpret ideas)
+- "Language Selection" → "Output Language" (with helptip)
+- Dynamic button labels: "Analyze Article", "Analyze Text", "Analyze Video"
+- Updated placeholders for URL and Video inputs
+- Helptip components with tooltips displayed to the right of icons
+
+### Voice Profiles
+- Added custom prompt support (prompt-only, samples-only, or both)
+- Removed mandatory word count requirements
+- Removed mandatory sample count (flexible sample management)
+- Removed file upload support (text input only)
+- Custom voice profiles always appear at the top of Thinking Style dropdown
+
+### Thinking Styles System
+- **Expanded to 8 styles**: Added 3 new styles (editorialColumn, impactDecoder, neutralBrief)
+- **Improved Prompts**: Integrated ChatGPT-improved prompts with COMMON_OUTPUT_RULES and COMMON_STRUCTURE
+- **Language-Agnostic**: Prompts adapt to output language automatically
+- **User Preferences**: Users can enable/disable default thinking styles in Settings
+- **Dropdown Filtering**: Only enabled default styles appear in dropdown
+- **Custom Styles Priority**: User-created voice profiles always shown first
+- **Database Migration**: Added `enabled_thinking_styles` JSONB column to users table
+
+### YouTube Transcript
+- Updated to use `youtube-transcript` package for caption extraction
+- Added Whisper fallback via external worker
+- Removed ytdl-core dependency
+
+### Analytics
+- Added Microsoft Clarity integration for user analytics
+
+### Dependencies Added
+- `@google-cloud/text-to-speech`: ^6.4.0
+- `mammoth`: ^1.11.0 (for .docx parsing, though file upload removed)
+- `youtube-transcript`: ^1.2.1

@@ -5,6 +5,7 @@ import { translateTo, generateInsights } from '@/lib/openai';
 import { checkTokenLimit, consumeTokens, calculateTokensUsed } from '@/lib/token-tracker';
 import { StyleArchetype, getDefaultStyle } from '@/lib/prompt-styles';
 import { supabaseServer, isSupabaseConfigured } from '@/lib/supabase';
+import { sanitizeError, ErrorCodes } from '@/lib/error-handler';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -37,14 +38,15 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch (err) {
+    const sanitized = sanitizeError({ code: ErrorCodes.INVALID_INPUT }, 'Request Parse');
     return new Response(
       JSON.stringify({ 
-        error: 'INVALID_REQUEST', 
-        message: 'Invalid request body',
-        userMessage: 'Please check your input and try again.'
+        error: sanitized.code,
+        message: sanitized.userMessage,
+        userMessage: sanitized.userMessage
       }),
       { 
-        status: 400,
+        status: sanitized.statusCode,
         headers: { 'Content-Type': 'application/json' }
       }
     );
@@ -56,10 +58,11 @@ export async function POST(request: Request) {
         // Check authentication
         const session = await getServerSession(authOptions);
         if (!session || !session.user?.id) {
+          const sanitized = sanitizeError({ code: ErrorCodes.UNAUTHORIZED }, 'Authentication');
           sendSSE(controller, 'error', {
-            error: 'UNAUTHORIZED',
-            message: 'Please sign in to continue',
-            userMessage: 'Your session has expired. Please sign in again.'
+            error: sanitized.code,
+            message: sanitized.userMessage,
+            userMessage: sanitized.userMessage
           });
           controller.close();
           return;
@@ -70,11 +73,11 @@ export async function POST(request: Request) {
         try {
           tokenStatus = await checkTokenLimit(session.user.id);
         } catch (error) {
-          console.error('Error checking token limit:', error);
+          const sanitized = sanitizeError(error, 'Token Limit Check');
           sendSSE(controller, 'error', {
-            error: 'SERVER_ERROR',
-            message: 'Failed to check token limit',
-            userMessage: 'Unable to verify your token limit. Please try again.'
+            error: sanitized.code,
+            message: sanitized.userMessage,
+            userMessage: sanitized.userMessage
           });
           controller.close();
           return;
@@ -538,22 +541,13 @@ export async function POST(request: Request) {
 
         controller.close();
       } catch (error) {
-        console.error('Stream error:', error);
-        
-        if (error instanceof z.ZodError) {
-          sendSSE(controller, 'error', {
-            error: 'INVALID_INPUT',
-            message: 'Invalid input provided',
-            details: error.errors
-          });
-        } else {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          sendSSE(controller, 'error', {
-            error: 'UNKNOWN_ERROR',
-            message: errorMessage,
-            userMessage: 'An unexpected error occurred. Please try again.'
-          });
-        }
+        // All errors are sanitized - no backend details exposed
+        const sanitized = sanitizeError(error, 'Stream Processing');
+        sendSSE(controller, 'error', {
+          error: sanitized.code,
+          message: sanitized.userMessage,
+          userMessage: sanitized.userMessage
+        });
         controller.close();
       }
     },
@@ -568,15 +562,15 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Error creating stream response:', error);
+    const sanitized = sanitizeError(error, 'Stream Creation');
     return new Response(
       JSON.stringify({ 
-        error: 'STREAM_ERROR', 
-        message: 'Failed to create stream',
-        userMessage: 'An error occurred while starting the processing. Please try again.'
+        error: sanitized.code,
+        message: sanitized.userMessage,
+        userMessage: sanitized.userMessage
       }),
       { 
-        status: 500,
+        status: sanitized.statusCode,
         headers: { 'Content-Type': 'application/json' }
       }
     );

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { createNextErrorResponse, ErrorCodes } from '@/lib/error-handler';
 
 // Initialize Google Cloud TTS client
 let ttsClient: TextToSpeechClient | null = null;
@@ -48,19 +49,23 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      const error = createNextErrorResponse({ code: ErrorCodes.UNAUTHORIZED }, 'TTS Authentication');
+      return NextResponse.json({ error: error.error, message: error.message }, { status: error.status });
     }
 
-    const { text, language } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      const error = createNextErrorResponse({ code: ErrorCodes.INVALID_INPUT }, 'TTS Request Parse');
+      return NextResponse.json({ error: error.error, message: error.message }, { status: error.status });
+    }
+
+    const { text, language } = body;
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Text is required' },
-        { status: 400 }
-      );
+      const error = createNextErrorResponse({ code: ErrorCodes.INVALID_INPUT }, 'TTS Validation');
+      return NextResponse.json({ error: error.error, message: error.message }, { status: error.status });
     }
 
     // Determine language for Google Cloud TTS
@@ -162,10 +167,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response.audioContent) {
-      return NextResponse.json(
-        { error: 'No audio content received from TTS service' },
-        { status: 500 }
-      );
+      const error = createNextErrorResponse({ code: ErrorCodes.SERVER_ERROR }, 'TTS Audio Generation');
+      return NextResponse.json({ error: error.error, message: error.message }, { status: error.status });
     }
 
     // Convert audio content to base64
@@ -177,26 +180,14 @@ export async function POST(request: NextRequest) {
       format: 'mp3'
     });
   } catch (error: any) {
-    console.error('Google Cloud TTS error:', error);
-    
-    // Provide helpful error messages
-    let errorMessage = 'TTS generation failed';
-    let details = error.message || String(error);
-    
-    if (error.message?.includes('credentials') || error.message?.includes('authentication')) {
-      errorMessage = 'TTS authentication failed';
-      details = 'Google Cloud credentials are missing or invalid. Please check your environment variables.';
-    } else if (error.message?.includes('quota') || error.message?.includes('billing')) {
-      errorMessage = 'TTS quota exceeded';
-      details = 'Google Cloud TTS quota has been exceeded. Please check your billing and quota settings.';
-    }
-
+    // All errors are sanitized - no backend details exposed
+    const sanitized = createNextErrorResponse(error, 'TTS Generation');
     return NextResponse.json(
       { 
-        error: errorMessage,
-        details 
+        error: sanitized.error,
+        message: sanitized.message
       },
-      { status: 500 }
+      { status: sanitized.status }
     );
   }
 }

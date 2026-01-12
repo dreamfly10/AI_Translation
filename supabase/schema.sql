@@ -12,11 +12,12 @@ CREATE TABLE IF NOT EXISTS users (
   subscription_expires_at TIMESTAMPTZ,
   payment_id TEXT,
   -- User preferences
-  default_writing_style TEXT CHECK (default_writing_style IN ('warmBookish', 'lifeReflection', 'contrarian', 'education', 'science')),
+  default_writing_style TEXT CHECK (default_writing_style IS NULL OR default_writing_style IN ('warmBookish', 'lifeReflection', 'contrarian', 'education', 'science', 'editorialColumn', 'impactDecoder', 'neutralBrief')),
   default_expression_variation TEXT CHECK (default_expression_variation IN ('light', 'medium', 'heavy')),
   default_target_language TEXT DEFAULT 'zh' CHECK (default_target_language IN ('zh', 'en', 'es', 'fr', 'de', 'ja', 'ko', 'pt', 'it', 'ru', 'ar')),
   show_language_toggle BOOLEAN DEFAULT true,
   default_ui_language TEXT DEFAULT 'en' CHECK (default_ui_language IN ('en', 'zh')),
+  enabled_thinking_styles JSONB DEFAULT '["warmBookish", "lifeReflection", "contrarian", "education", "science", "editorialColumn", "impactDecoder", "neutralBrief"]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS articles (
   original_content TEXT NOT NULL,
   translated_content TEXT NOT NULL,
   insights TEXT NOT NULL,
-  style TEXT CHECK (style IN ('warmBookish', 'lifeReflection', 'contrarian', 'education', 'science')),
+  style TEXT CHECK (style IS NULL OR style IN ('warmBookish', 'lifeReflection', 'contrarian', 'education', 'science', 'editorialColumn', 'impactDecoder', 'neutralBrief')),
   target_language TEXT DEFAULT 'zh' CHECK (target_language IN ('zh', 'en', 'es', 'fr', 'de', 'ja', 'ko', 'pt', 'it', 'ru', 'ar')),
   tokens_used INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

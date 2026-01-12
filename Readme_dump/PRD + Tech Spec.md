@@ -8,11 +8,13 @@
 
 - ✅ **Multi-Language Translation**: Supports 11 target languages (Chinese, English, Spanish, French, German, Japanese, Korean, Portuguese, Italian, Russian, Arabic)
 - ✅ **Progressive Rendering**: Real-time streaming of translation and insights using Server-Sent Events (SSE)
-- ✅ **Author Profile System**: Personalized content generation based on user's writing samples
-- ✅ **Token-based Usage**: Trial users get 1,000 tokens, paid users get 1,000,000 tokens/month
-- ✅ **Expression Variation**: Three levels (Light, Medium, Heavy) for controlling output intensity
-- ✅ **5 Writing Styles**: Warm Bookish, Life Reflection, Contrarian, Education, Science
-- ✅ **User Preferences**: Customizable defaults for writing style, expression variation, target language, and UI language
+- ✅ **Author Profile System**: Personalized content generation based on user's writing samples or custom prompts
+- ✅ **Text-to-Speech**: Audio playback for translations and insights using Google Cloud TTS (English and Chinese)
+- ✅ **Token-based Usage**: Trial users get 5,000 tokens, paid users get 1,000,000 tokens/month
+- ✅ **Degree of Rewriting**: Three levels (Low, Medium, High) for controlling output intensity
+- ✅ **8 Thinking Styles**: Empathetic Thinking, Reflective Thinking, Critical Thinking, Methodical Thinking, Scientific Thinking, Editorial Column, Impact Decoder, Neutral Brief
+- ✅ **Customizable Style Visibility**: Users can enable/disable default thinking styles in preferences
+- ✅ **User Preferences**: Customizable defaults for thinking style, expression variation, target language, UI language, and enabled thinking styles visibility
 - ✅ **Payment System**: Stripe integration with subscription management, payment history, and billing portal
 - ✅ **Article History**: Paginated article history with soft delete functionality
 - ✅ **Auto Sign-Out**: Automatic session timeout after inactivity
@@ -28,12 +30,20 @@ Expression Copilot allows users to input article URLs or raw text, automatically
 
 ### 1. Multi-Modal Content Processing
 - **URL Input**: Extract content from web articles
+  - Placeholder: "Paste an article link. We'll extract meaning, not just text."
 - **Raw Text Input**: Direct text processing with format validation
-- **Video Input**: YouTube video support with automatic transcript extraction using OpenAI Whisper
-  - Supports videos up to 2 hours in length
-  - Automatic audio extraction and transcription
+- **Video Input**: YouTube video support with automatic transcript extraction
+  - Uses `youtube-transcript` package for caption extraction
+  - Falls back to OpenAI Whisper API via external worker if captions unavailable
+  - Placeholder: "Supports videos with captions. We analyze the transcript, not the visuals."
   - Handles various YouTube URL formats (youtube.com, youtu.be, embed URLs)
 - **Content Validation**: Automatic format checking and error prevention
+- **UI Labels**: 
+  - Title: "Start with a link, text, or video" (with helptip)
+  - "Thinking Style" (formerly "Writing Style")
+  - "Degree of Rewriting" (formerly "Expression Variation") with options: Low (preserve structure), Medium (reframe & reorganize), High (reinterpret ideas)
+  - "Output Language" (formerly "Language Selection") with helptip
+  - Dynamic button labels: "Analyze Article" (URL), "Analyze Text" (Raw Text), "Analyze Video" (Video)
 
 ### 2. Multi-Language Translation
 - **11 Target Languages**: Chinese (Simplified), English, Spanish, French, German, Japanese, Korean, Portuguese, Italian, Russian, Arabic
@@ -42,24 +52,37 @@ Expression Copilot allows users to input article URLs or raw text, automatically
 - **Markdown-Free Output**: Clean text output without formatting artifacts
 
 ### 3. Personalized Content Generation
-- **Author Profile System**: Upload 3-10 writing samples (200-800 words each)
-- **Style Extraction**: AI-powered analysis of writing patterns, tone, and structure
+- **Author Profile System**: Upload writing samples or provide custom prompts
+  - **Writing Samples**: Flexible number of samples (no mandatory word limits)
+  - **Custom Prompts**: Direct style instructions without samples
+  - **Combined Mode**: Use both samples and custom prompts together
+- **Style Extraction**: AI-powered analysis of writing patterns, tone, and structure (for sample-based profiles)
 - **Dynamic Injection**: Representative samples and style rules injected into generation prompts
 - **Voice Quality**: Content generated in user's personal voice, not generic AI
 
-### 4. Writing Style System
-- **5 Predefined Styles**:
-  1. **Emotional Resonance (治愈+情感)**: Warm, empathetic, longform style
-  2. **Life Reflection (人生思考+实用智慧)**: Practical wisdom with clear structure
-  3. **Contrarian (反直觉评论+犀利逻辑)**: Sharp, logical, contrarian viewpoints
-  4. **Education (教育祛魅 + 逻辑拆解)**: Methodological, framework-based thinking
-  5. **Science (科学解释+怀疑思维)**: Precise, evidence-based, skeptical analysis
-- **Expression Variation**: Three levels (Light, Medium, Heavy) controlling rewriting intensity
-- **Temperature Control**: Optimized temperature settings per style (0.7-0.85)
+### 4. Thinking Style System
+- **8 Predefined Styles** (with improved prompts):
+  1. **Empathetic Thinking (共情思维)**: Warm, empathetic, longform style - gentle companion approach
+  2. **Reflective Thinking (反思思维)**: Practical wisdom with clear structure - judgment builder
+  3. **Critical Thinking (批判思维)**: Sharp, logical, contrarian viewpoints - assumption breaker
+  4. **Methodical Thinking (方法思维)**: Methodological, framework-based thinking - mental model builder
+  5. **Scientific Thinking (科学思维)**: Precise, evidence-based, skeptical analysis - epistemic clarity
+  6. **Editorial Column (专栏思维)**: Column-style writing with rhythm and reasoning - mature columnist voice
+  7. **Impact Decoder (影响分析)**: Impact chain analysis - who, how, when, consequences
+  8. **Neutral Brief (中立摘要)**: Emotion-free, stance-free, high-clarity - fact-focused briefing
+- **Style Visibility Control**: Users can enable/disable default thinking styles in Settings → Preferences
+- **Custom Styles Priority**: User-created voice profiles always appear at the top of the dropdown
+- **Improved Prompts**: All styles use enhanced prompts with COMMON_OUTPUT_RULES and COMMON_STRUCTURE
+- **Language-Agnostic**: Prompts automatically adapt to output language
+- **Degree of Rewriting**: Three levels controlling rewriting intensity
+  - **Low (preserve structure)**: Minimal changes, maintains original structure
+  - **Medium (reframe & reorganize)**: Moderate restructuring and reframing
+  - **High (reinterpret ideas)**: Significant reinterpretation and restructuring
+- **Temperature Control**: Optimized temperature settings per style (0.60-0.82)
 
 ### 5. User Management
 - **Authentication**: Email/Password with optional Google OAuth
-- **Trial Users**: 1,000 tokens with strict enforcement
+- **Trial Users**: 5,000 tokens with strict enforcement
 - **Paid Users**: 1,000,000 tokens/month with subscription management
 - **Auto Sign-Out**: Configurable inactivity timeout
 - **User Preferences**: Saved defaults for all settings
@@ -103,8 +126,9 @@ Expression Copilot allows users to input article URLs or raw text, automatically
 - **Translation**: OpenAI GPT-4o-mini
 - **Insights**: OpenAI GPT-4o
 - **Content Extraction**: Cheerio (HTML parsing)
-- **Video Transcription**: OpenAI Whisper API for YouTube video transcript extraction
-- **YouTube Processing**: ytdl-core for audio extraction from YouTube videos
+- **Video Transcription**: YouTube transcript extraction via `youtube-transcript` package with OpenAI Whisper API fallback
+- **Text-to-Speech**: Google Cloud Text-to-Speech API for audio generation (English and Chinese)
+- **Document Parsing**: Mammoth for .docx file parsing
 
 ### Database
 - **Platform**: Supabase (PostgreSQL)
@@ -126,7 +150,7 @@ Expression Copilot allows users to input article URLs or raw text, automatically
 ```
 User Authentication (NextAuth)
    ↓
-Token Limit Check (Trial: 1,000 / Paid: 1,000,000)
+Token Limit Check (Trial: 5,000 / Paid: 1,000,000)
    ↓
 User Input (URL, Text, or Video)
    ↓
@@ -171,16 +195,18 @@ Result Rendering with Progressive Updates
 12. User views complete translation and insights
 
 ### Author Profile Creation Flow
-1. User clicks "+ Custom Author Profile" or navigates to Settings
+1. User clicks "Add Your Style" or navigates to Settings
 2. User provides profile name
-3. User uploads 3-10 writing samples (files or paste)
-4. System validates samples (200-800 words each, minimum 3)
-5. System creates voice profile in database
-6. System extracts style rules using OpenAI (tone, patterns, avoid list)
-7. System saves extracted rules to profile
-8. Profile becomes available in Writing Style dropdown
-9. User can view, expand, and delete individual samples
-10. User can delete entire profile (minimum 3 samples enforced)
+3. User chooses profile type:
+   - **Writing Samples**: Paste text samples (flexible count, no word limits)
+   - **Custom Prompt**: Provide direct style instructions
+   - **Both**: Combine samples and custom prompt
+4. System creates voice profile in database
+5. For sample-based profiles: System extracts style rules using OpenAI (tone, patterns, avoid list)
+6. System saves extracted rules or custom prompt to profile
+7. Profile becomes available in Thinking Style dropdown
+8. User can view, expand, and delete individual samples
+9. User can delete entire profile
 
 ### Payment & Subscription Flow
 1. User clicks "Upgrade" or "Manage Subscription"
@@ -214,11 +240,12 @@ Result Rendering with Progressive Updates
 - subscription_status (TEXT) -- 'active' | 'expired' | 'cancelled'
 - subscription_expires_at (TIMESTAMPTZ)
 - payment_id (TEXT) -- Stripe customer ID
-- default_writing_style (TEXT) -- User preference
+- default_writing_style (TEXT) -- User preference (8 style options)
 - default_expression_variation (TEXT) -- 'light' | 'medium' | 'heavy'
 - default_target_language (TEXT, DEFAULT 'zh')
 - show_language_toggle (BOOLEAN, DEFAULT true)
 - default_ui_language (TEXT, DEFAULT 'en') -- 'en' | 'zh'
+- enabled_thinking_styles (JSONB) -- Array of enabled default thinking style keys, defaults to all 8 styles
 - created_at (TIMESTAMPTZ)
 - updated_at (TIMESTAMPTZ)
 ```
@@ -233,7 +260,7 @@ Result Rendering with Progressive Updates
 - original_content (TEXT, NOT NULL)
 - translated_content (TEXT, NOT NULL)
 - insights (TEXT, NOT NULL)
-- style (TEXT) -- Writing style used
+- style (TEXT) -- Thinking style used (8 style options)
 - target_language (TEXT, DEFAULT 'zh')
 - tokens_used (INTEGER, DEFAULT 0)
 - created_at (TIMESTAMPTZ)
@@ -248,7 +275,9 @@ Result Rendering with Progressive Updates
 - sliders_json (JSONB, nullable)
 - do_list (TEXT[], nullable)
 - dont_list (TEXT[], nullable)
-- style_rules (JSONB) -- Extracted style characteristics
+- style_rules (JSONB, nullable) -- Extracted style characteristics (for sample-based profiles)
+- custom_prompt (TEXT, nullable) -- Custom prompt/instructions for prompt-based profiles
+- profile_type (TEXT, DEFAULT 'samples') -- CHECK constraint: 'samples' | 'prompt' | 'both'
 - created_at (TIMESTAMPTZ)
 - updated_at (TIMESTAMPTZ)
 ```
@@ -258,7 +287,7 @@ Result Rendering with Progressive Updates
 - id (UUID, PRIMARY KEY)
 - voice_profile_id (UUID, FOREIGN KEY → voice_profiles.id)
 - content (TEXT, NOT NULL)
-- word_count (INTEGER)
+- word_count (INTEGER, nullable) -- Optional, no longer required
 - platform (TEXT, nullable)
 - created_at (TIMESTAMPTZ)
 ```
@@ -275,7 +304,7 @@ Result Rendering with Progressive Updates
 {
   "inputType": "url" | "text" | "video",
   "content": "string",
-  "style": "warmBookish" | "lifeReflection" | "contrarian" | "education" | "science" (optional),
+  "style": "warmBookish" | "lifeReflection" | "contrarian" | "education" | "science" | "editorialColumn" | "impactDecoder" | "neutralBrief" (optional),
   "rewritingLevel": "light" | "medium" | "heavy" (optional),
   "voiceProfileId": "uuid" (optional),
   "targetLanguage": "zh" | "en" | "es" | "fr" | "de" | "ja" | "ko" | "pt" | "it" | "ru" | "ar" (optional, default: "zh")
@@ -381,7 +410,9 @@ Result Rendering with Progressive Updates
 ```json
 {
   "name": "string",
-  "samples": ["string", "string", ...], // 3-10 samples, 200-800 words each
+  "samples": ["string", "string", ...] (optional), // Flexible count, no word limits
+  "customPrompt": "string" (optional), // Custom style instructions
+  "profileType": "samples" | "prompt" | "both" (optional, default: "samples"),
   "doList": ["string"] (optional),
   "dontList": ["string"] (optional)
 }
@@ -434,7 +465,8 @@ Result Rendering with Progressive Updates
   "defaultExpressionVariation": "medium" | null,
   "defaultTargetLanguage": "zh",
   "showLanguageToggle": true,
-  "defaultUILanguage": "en"
+  "defaultUILanguage": "en",
+  "enabledThinkingStyles": ["warmBookish", "lifeReflection", ...] | null
 }
 ```
 
@@ -448,7 +480,8 @@ Result Rendering with Progressive Updates
   "defaultExpressionVariation": "medium" | null,
   "defaultTargetLanguage": "zh",
   "showLanguageToggle": true,
-  "defaultUILanguage": "en"
+  "defaultUILanguage": "en",
+  "enabledThinkingStyles": ["warmBookish", "lifeReflection", ...] | null
 }
 ```
 
@@ -519,12 +552,44 @@ Result Rendering with Progressive Updates
   "allowed": true,
   "tokensUsed": 150,
   "tokensRemaining": 850,
-  "limit": 1000,
+    "limit": 5000,
   "userType": "trial",
   "subscriptionStartDate": "2024-01-01",
   "subscriptionExpiresAt": "2024-02-01"
 }
 ```
+
+### Text-to-Speech
+
+#### `POST /api/text-to-speech`
+**Generate audio from text using Google Cloud Text-to-Speech**
+
+**Request Body:**
+```json
+{
+  "text": "string",
+  "language": "en" | "zh"
+}
+```
+
+**Response:**
+```json
+{
+  "audio": "base64-encoded-audio-string",
+  "format": "mp3"
+}
+```
+
+**Features:**
+- Automatically detects language (English or Chinese) based on text content
+- Uses Google Cloud Text-to-Speech API
+- Returns base64-encoded MP3 audio
+- Supports high-quality neural voices
+- Used for both Translation and Insights sections
+
+**Environment Variables:**
+- `GOOGLE_APPLICATION_CREDENTIALS_JSON` (recommended) - Full service account JSON as string
+- OR `GOOGLE_CLOUD_PROJECT_ID`, `GOOGLE_CLOUD_PRIVATE_KEY`, `GOOGLE_CLOUD_CLIENT_EMAIL`
 
 ### Authentication
 
@@ -550,10 +615,11 @@ Result Rendering with Progressive Updates
 - **Text Length**: Minimum 50 characters for text input
 - **URL in Text**: Detects URLs pasted in Raw Text field, shows error
 - **Empty Content**: Prevents processing of empty inputs
-- **YouTube Videos**: Automatically extracts and transcribes using Whisper API
-  - Validates video availability and length (max 2 hours)
-  - Handles private/unavailable videos with clear error messages
-  - Progress updates during audio download and transcription
+- **YouTube Videos**: Extracts transcript via captions or Whisper fallback
+  - Primary: Uses `youtube-transcript` package to fetch captions
+  - Fallback: External Whisper worker if captions unavailable
+  - Handles videos without captions with clear error messages
+  - Progress updates during transcript extraction
 
 ### Token Management
 - **Pre-Validation**: Estimates tokens before processing
@@ -597,17 +663,20 @@ Result Rendering with Progressive Updates
 ## User Preferences System
 
 ### Stored Preferences
-1. **Default Writing Style**: Pre-selected style on page load
+1. **Default Writing Style**: Pre-selected style on page load (8 options)
 2. **Default Expression Variation**: Pre-selected variation level
 3. **Default Target Language**: Pre-selected translation language
 4. **Show Language Toggle**: Toggle visibility of language switcher in header
 5. **Default UI Language**: Default language for interface (English/Chinese)
+6. **Enabled Thinking Styles**: Array of default thinking styles to show in dropdown (null = all enabled)
 
 ### Preference Application
 - **On Load**: Preferences applied when ArticleProcessor mounts
 - **Real-Time Updates**: Changes apply immediately via event system
 - **Persistence**: Saved to database, loaded on session start
-- **Fallbacks**: Sensible defaults if preferences not set
+- **Fallbacks**: Sensible defaults if preferences not set (all styles enabled by default)
+- **Dropdown Filtering**: Only enabled default styles appear in Thinking Style dropdown
+- **Custom Styles Priority**: User-created voice profiles always shown first, then enabled default styles
 
 ## Progressive Rendering & Real-Time Updates
 
@@ -677,6 +746,13 @@ NEXTAUTH_URL=http://localhost:3000
 # AI
 OPENAI_API_KEY=sk-...
 
+# Text-to-Speech (Google Cloud)
+GOOGLE_APPLICATION_CREDENTIALS_JSON={"type":"service_account",...} # Full JSON as string
+# OR use individual variables:
+# GOOGLE_CLOUD_PROJECT_ID=your-project-id
+# GOOGLE_CLOUD_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# GOOGLE_CLOUD_CLIENT_EMAIL=your-service@project.iam.gserviceaccount.com
+
 # Payment
 STRIPE_SECRET_KEY=sk_test_... or sk_live_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_... or pk_live_...
@@ -716,6 +792,66 @@ SUPPORT_EMAIL=your-email@example.com
 
 ---
 
-**Last Updated**: December 2024
-**Version**: 1.0.0
+**Last Updated**: January 2025
+**Version**: 1.2.0
 **Application Name**: Expression Copilot (智能表达助理)
+
+## Recent Updates (January 2025)
+
+### Token Limits
+- Trial users: Increased from 1,000 to 5,000 tokens
+
+### Text-to-Speech Feature
+- Added Google Cloud Text-to-Speech API integration
+- Audio playback for Translation and Insights sections
+- Supports English and Chinese voices
+- Dynamic voice selection (automatically picks best available voice)
+- Audio controls: play/pause, replay, speed adjustment
+
+### UI/UX Improvements
+- **Title**: Changed from "Multimodal Content" to "Start with a link, text, or video" with helptip
+- **Thinking Style**: Renamed from "Writing Style" (formerly "Author Profile")
+- **Degree of Rewriting**: Renamed from "Expression Variation" with updated options:
+  - Low (preserve structure) - formerly "Light"
+  - Medium (reframe & reorganize) - formerly "Medium"
+  - High (reinterpret ideas) - formerly "Heavy"
+- **Output Language**: Renamed from "Language Selection" with helptip
+- **Dynamic Button Labels**: 
+  - URL tab: "Analyze Article"
+  - Raw Text tab: "Analyze Text"
+  - Video tab: "Analyze Video"
+- **Updated Placeholders**:
+  - URL: "Paste an article link. We'll extract meaning, not just text."
+  - Video: "Supports videos with captions. We analyze the transcript, not the visuals."
+- **Helptips**: Interactive tooltips displayed to the right of icons
+
+### Voice Profiles (Author Profiles)
+- **Custom Prompt Support**: Users can provide direct style instructions
+- **Profile Types**: samples-only, prompt-only, or both
+- **Flexible Requirements**: Removed mandatory word counts and sample minimums
+- **Text Input Only**: File upload removed, users paste text directly
+
+### YouTube Transcript Processing
+- **Primary Strategy**: Uses `youtube-transcript` package for caption extraction
+- **Fallback Strategy**: External Whisper worker for videos without captions
+- **Removed**: ytdl-core dependency (no longer used)
+
+### Analytics
+- **Microsoft Clarity**: Integrated for user behavior tracking and analytics
+
+### Thinking Styles System (January 2025)
+- **Expanded to 8 Styles**: Added 3 new thinking styles:
+  - Editorial Column (专栏思维): Column-style writing with rhythm and reasoning
+  - Impact Decoder (影响分析): Impact chain analysis for policy/business/social issues
+  - Neutral Brief (中立摘要): Emotion-free, fact-focused briefing
+- **Improved Prompts**: All styles now use ChatGPT-enhanced prompts with:
+  - COMMON_OUTPUT_RULES: Prevents generic summaries, focuses on meaning and connections
+  - COMMON_STRUCTURE: Standardized 5-part structure (core, what matters, why, how connects, actions)
+  - Language-agnostic: Prompts adapt to output language automatically
+- **Style Visibility Control**: 
+  - Users can enable/disable default thinking styles in Settings → Preferences
+  - Checkbox UI for each of the 8 default styles
+  - Custom voice profiles always appear at the top of dropdown
+  - Only enabled default styles appear in dropdown
+- **Database Schema**: Added `enabled_thinking_styles` JSONB column to users table
+- **Migration**: `supabase/migrations/add_enabled_thinking_styles.sql` updates schema and constraints

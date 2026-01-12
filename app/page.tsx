@@ -14,6 +14,7 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { useSettingsModal } from '@/contexts/SettingsModalContext';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { GetStartedModal } from '@/components/GetStartedModal';
+import NarrativeDemo from '@/components/NarrativeDemo';
 
 function HomeContent() {
   const { data: session, status } = useSession();
@@ -54,7 +55,23 @@ function HomeContent() {
           display: 'flex', 
           alignItems: 'center' 
         }}>
-          <Link href="/" style={{ textDecoration: 'none', color: 'var(--color-text-primary)', flex: 1 }}>
+          <Link href="/" style={{ 
+            textDecoration: 'none', 
+            color: 'var(--color-text-primary)', 
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <img 
+              src="/public.png" 
+              alt="Expression Copilot Logo" 
+              style={{
+                height: '6.5rem',
+                width: 'auto',
+                objectFit: 'contain'
+              }}
+            />
             <h1 style={{ margin: 0, fontSize: '2.25rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('nav.title')}</h1>
           </Link>
           {!session && (
@@ -176,6 +193,9 @@ function HomeContent() {
                 </div>
               </div>
             </section>
+
+            {/* Narrative Demo */}
+            <NarrativeDemo />
 
             {/* How It Works Section */}
             <section className="container" style={{ paddingTop: 'var(--spacing-3xl)', paddingBottom: 'var(--spacing-3xl)' }}>

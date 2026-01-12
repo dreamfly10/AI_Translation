@@ -18,6 +18,7 @@ import { useEffect } from 'react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthModalProvider } from '@/contexts/AuthModalContext';
 import { SettingsModalProvider } from '@/contexts/SettingsModalContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -74,15 +75,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SessionProvider>
-      <LanguageProvider>
-        <AuthModalProvider>
-          <SettingsModalProvider>
-            {children}
-          </SettingsModalProvider>
-        </AuthModalProvider>
-      </LanguageProvider>
-    </SessionProvider>
+    <ErrorBoundary>
+      <SessionProvider>
+        <LanguageProvider>
+          <AuthModalProvider>
+            <SettingsModalProvider>
+              {children}
+            </SettingsModalProvider>
+          </AuthModalProvider>
+        </LanguageProvider>
+      </SessionProvider>
+    </ErrorBoundary>
   );
 }
 

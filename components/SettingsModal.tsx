@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { VoiceProfileModal } from './VoiceProfileModal';
 import { useSettingsModal } from '@/contexts/SettingsModalContext';
+import { styleArchetypes, styleArchetypeKeys, getAllDefaultStyles } from '@/lib/prompt-styles';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
   const [preferences, setPreferences] = useState({
     defaultWritingStyle: null as string | null,
+    enabledThinkingStyles: null as string[] | null,
     defaultExpressionVariation: null as string | null,
     defaultTargetLanguage: 'zh' as string,
     showLanguageToggle: true,
@@ -180,6 +182,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           defaultTargetLanguage: data.defaultTargetLanguage || 'zh',
           showLanguageToggle: data.showLanguageToggle !== undefined ? data.showLanguageToggle : true,
           defaultUILanguage: fetchedUILanguage,
+          enabledThinkingStyles: data.enabledThinkingStyles || null,
         });
         setPreviousUILanguage(fetchedUILanguage);
       }
@@ -203,6 +206,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         defaultTargetLanguage: preferences.defaultTargetLanguage || 'zh',
         showLanguageToggle: preferences.showLanguageToggle,
         defaultUILanguage: preferences.defaultUILanguage || 'en',
+        enabledThinkingStyles: preferences.enabledThinkingStyles,
       };
       
       const response = await fetch('/api/user-preferences', {
@@ -1485,11 +1489,11 @@ Expression Copilot 然后将其用作生成见解和解释时的参考风格 —
                       }}
                     >
                       <option value="">{language === 'en' ? 'None (use default)' : '无（使用默认）'}</option>
-                      <option value="warmBookish">{language === 'en' ? 'Emotional Resonance' : '治愈+情感'}</option>
-                      <option value="lifeReflection">{language === 'en' ? 'Life Reflection' : '人生思考+实用智慧'}</option>
-                      <option value="contrarian">{language === 'en' ? 'Contrarian' : '反直觉评论+犀利逻辑'}</option>
-                      <option value="education">{language === 'en' ? 'Education' : '教育祛魅 + 逻辑拆解'}</option>
-                      <option value="science">{language === 'en' ? 'Science' : '科学解释+怀疑精神'}</option>
+                      <option value="warmBookish">{language === 'en' ? 'Empathetic Thinking' : '共情思维'}</option>
+                      <option value="lifeReflection">{language === 'en' ? 'Reflective Thinking' : '反思思维'}</option>
+                      <option value="contrarian">{language === 'en' ? 'Critical Thinking' : '批判思维'}</option>
+                      <option value="education">{language === 'en' ? 'Methodical Thinking' : '方法思维'}</option>
+                      <option value="science">{language === 'en' ? 'Scientific Thinking' : '科学思维'}</option>
                     </select>
                   </div>
 
@@ -1625,6 +1629,91 @@ Expression Copilot 然后将其用作生成见解和解释时的参考风格 —
                       </p>
                     </div>
                   )}
+
+                  {/* Enabled Thinking Styles */}
+                  <div style={{ marginTop: 'var(--spacing-lg)' }}>
+                    <label style={{ 
+                      display: 'block',
+                      marginBottom: 'var(--spacing-md)',
+                      fontWeight: 600,
+                      color: 'var(--color-text-primary)',
+                      fontSize: '1.1rem'
+                    }}>
+                      {language === 'en' ? 'Show Thinking Styles in Dropdown' : '在下拉菜单中显示的思维风格'}
+                    </label>
+                    <p style={{ 
+                      marginBottom: 'var(--spacing-md)', 
+                      fontSize: '0.875rem', 
+                      color: 'var(--color-text-secondary)' 
+                    }}>
+                      {language === 'en' 
+                        ? 'Toggle which default thinking styles appear in the dropdown. Your custom styles will always appear at the top.' 
+                        : '切换哪些默认思维风格出现在下拉菜单中。您的自定义风格将始终显示在顶部。'}
+                    </p>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-sm)',
+                      padding: 'var(--spacing-md)',
+                      background: 'var(--color-background-secondary)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--color-border)'
+                    }}>
+                      {styleArchetypeKeys.map((key) => {
+                        const config = styleArchetypes[key];
+                        const enabledStyles = preferences.enabledThinkingStyles || getAllDefaultStyles();
+                        const isEnabled = enabledStyles.includes(key);
+                        
+                        return (
+                          <label
+                            key={key}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 'var(--spacing-sm)',
+                              cursor: 'pointer',
+                              padding: 'var(--spacing-sm)',
+                              borderRadius: 'var(--radius-sm)',
+                              transition: 'background var(--transition-base)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'var(--color-background-tertiary)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isEnabled}
+                              onChange={(e) => {
+                                const currentEnabled = preferences.enabledThinkingStyles || getAllDefaultStyles();
+                                const newEnabled = e.target.checked
+                                  ? [...currentEnabled, key]
+                                  : currentEnabled.filter((k) => k !== key);
+                                setPreferences({
+                                  ...preferences,
+                                  enabledThinkingStyles: newEnabled.length === styleArchetypeKeys.length ? null : newEnabled
+                                });
+                              }}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: 'var(--color-primary)'
+                              }}
+                            />
+                            <span style={{ 
+                              color: 'var(--color-text-primary)',
+                              fontSize: '0.9375rem'
+                            }}>
+                              {language === 'en' ? config.nameEn : config.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   {/* Save Button */}
                   <div style={{ marginTop: 'var(--spacing-md)' }}>

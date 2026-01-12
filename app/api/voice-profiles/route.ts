@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { supabaseServer, isSupabaseConfigured } from '@/lib/supabase';
 import { z } from 'zod';
+import { createNextErrorResponse, ErrorCodes } from '@/lib/error-handler';
 
 const createVoiceProfileSchema = z.object({
   name: z.string().min(1).max(100),
@@ -134,38 +135,17 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const firstError = error.errors[0];
+      const errorMessage = firstError?.message || 'Invalid input';
       return NextResponse.json(
-        { error: 'INVALID_INPUT', message: 'Invalid input', details: error.errors },
+        { error: 'INVALID_INPUT', message: errorMessage },
         { status: 400 }
       );
     }
-    console.error('Error creating voice profile:', error);
     
-    // Provide more helpful error messages
-    let errorMessage = 'Failed to create voice profile';
-    let userMessage = 'Failed to create voice profile. Please try again.';
-    
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      
-      // Check for specific database errors
-      if (error.message.includes('custom_prompt') || error.message.includes('profile_type')) {
-        userMessage = 'Database migration required. Please run the migration from supabase/migrations/add_custom_prompt_to_voice_profiles.sql in your Supabase SQL Editor.';
-      } else if (error.message.includes('does not exist')) {
-        userMessage = 'Database table or column does not exist. Please run the database migrations in your Supabase SQL Editor.';
-      } else if (error.message.includes('Supabase is not configured')) {
-        userMessage = 'Database is not configured. Please check your Supabase settings in .env.local';
-      }
-    }
-    
-    return NextResponse.json(
-      { 
-        error: 'SERVER_ERROR', 
-        message: errorMessage,
-        userMessage: userMessage
-      },
-      { status: 500 }
-    );
+    // All errors are sanitized - no backend details exposed
+    const sanitized = createNextErrorResponse(error, 'Voice Profile Creation');
+    return NextResponse.json({ error: sanitized.error, message: sanitized.message }, { status: sanitized.status });
   }
 }
 

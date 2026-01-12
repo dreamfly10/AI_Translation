@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const preferencesSchema = z.object({
   defaultWritingStyle: z.union([
-    z.enum(['warmBookish', 'lifeReflection', 'contrarian', 'education', 'science']),
+    z.enum(['warmBookish', 'lifeReflection', 'contrarian', 'education', 'science', 'editorialColumn', 'impactDecoder', 'neutralBrief']),
     z.literal(''),
     z.null()
   ]).optional().transform(val => val === '' ? null : val),
@@ -20,6 +20,7 @@ const preferencesSchema = z.object({
   defaultTargetLanguage: z.enum(['zh', 'en', 'es', 'fr', 'de', 'ja', 'ko', 'pt', 'it', 'ru', 'ar']).optional().default('zh'),
   showLanguageToggle: z.boolean().optional(),
   defaultUILanguage: z.enum(['en', 'zh']).optional().default('en'),
+  enabledThinkingStyles: z.array(z.string()).optional(),
 });
 
 export async function GET(request: Request) {
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
       defaultTargetLanguage: user.defaultTargetLanguage || 'zh',
       showLanguageToggle: user.showLanguageToggle !== undefined ? user.showLanguageToggle : true,
       defaultUILanguage: user.defaultUILanguage || 'en',
+      enabledThinkingStyles: user.enabledThinkingStyles || null,
     });
   } catch (error) {
     console.error('Error fetching user preferences:', error);
@@ -77,6 +79,7 @@ export async function PUT(request: Request) {
             defaultTargetLanguage: preferences.defaultTargetLanguage,
             showLanguageToggle: preferences.showLanguageToggle,
             defaultUILanguage: preferences.defaultUILanguage,
+            enabledThinkingStyles: preferences.enabledThinkingStyles,
           });
 
       if (!updatedUser) {
@@ -109,6 +112,7 @@ export async function PUT(request: Request) {
         defaultTargetLanguage: updatedUser.defaultTargetLanguage || 'zh',
         showLanguageToggle: updatedUser.showLanguageToggle !== undefined ? updatedUser.showLanguageToggle : true,
         defaultUILanguage: updatedUser.defaultUILanguage || 'en',
+        enabledThinkingStyles: updatedUser.enabledThinkingStyles || null,
       },
     });
   } catch (error) {

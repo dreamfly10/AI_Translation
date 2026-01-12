@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { z } from 'zod';
+import { createNextErrorResponse, ErrorCodes } from '@/lib/error-handler';
 
 // Helper to count words
 const countWords = (text: string): number => {
@@ -24,11 +25,8 @@ export async function POST(request: Request) {
     const { name, email, subject, message } = supportSchema.parse(body);
 
     if (!process.env.RESEND_API_KEY) {
-      console.error('RESEND_API_KEY is not configured');
-      return NextResponse.json(
-        { error: 'Email service not configured. Please contact the administrator.' },
-        { status: 500 }
-      );
+      const error = createNextErrorResponse({ code: ErrorCodes.SERVER_ERROR }, 'Support Email Config');
+      return NextResponse.json({ error: error.error, message: error.message }, { status: error.status });
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
@@ -72,15 +70,8 @@ ${message}
     });
 
     if (error) {
-      console.error('Resend error:', error);
-      return NextResponse.json(
-        { 
-          error: 'Failed to send email', 
-          message: error.message || 'Email service error',
-          details: process.env.NODE_ENV === 'development' ? error : undefined,
-        },
-        { status: 500 }
-      );
+      const sanitized = createNextErrorResponse(error, 'Resend Email');
+      return NextResponse.json({ error: sanitized.error, message: sanitized.message }, { status: sanitized.status });
     }
 
     console.log('Support email sent successfully:', data?.id);
@@ -92,28 +83,20 @@ ${message}
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Get the first validation error message for better user feedback
       const firstError = error.errors[0];
       const errorMessage = firstError?.message || 'Please check your form inputs';
-      
       return NextResponse.json(
         { 
-          error: errorMessage,
-          message: errorMessage,
-          details: error.errors 
+          error: ErrorCodes.INVALID_INPUT,
+          message: errorMessage
         },
         { status: 400 }
       );
     }
 
-    console.error('Support request error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to process support request',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    // All errors are sanitized - no backend details exposed
+    const sanitized = createNextErrorResponse(error, 'Support Request');
+    return NextResponse.json({ error: sanitized.error, message: sanitized.message }, { status: sanitized.status });
   }
 }
 
