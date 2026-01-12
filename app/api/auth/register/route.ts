@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { createErrorResponse } from '@/lib/error-handler';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -51,8 +52,7 @@ export async function POST(request: Request) {
     }
 
     // All errors are sanitized - no backend details exposed
-    const sanitized = createNextErrorResponse(error, 'User Registration');
-    return NextResponse.json({ error: sanitized.error, message: sanitized.message }, { status: sanitized.status });
+    return createErrorResponse(error, 'User Registration');
   }
 }
 

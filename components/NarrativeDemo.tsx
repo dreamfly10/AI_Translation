@@ -45,7 +45,7 @@ export default function NarrativeDemo() {
       y: 0,
       transition: {
         duration: duration,
-        ease: [0.4, 0, 0.2, 1],
+        ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
       },
     },
     exit: {
@@ -53,7 +53,7 @@ export default function NarrativeDemo() {
       y: -10,
       transition: {
         duration: duration * 0.8,
-        ease: [0.4, 0, 0.2, 1],
+        ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
       },
     },
   };
@@ -150,7 +150,7 @@ export default function NarrativeDemo() {
                   transition={{
                     duration: duration,
                     delay: delay * 1.5,
-                    ease: [0.4, 0, 0.2, 1],
+                    ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                   }}
                   style={{
                     width: '100%',
@@ -174,7 +174,7 @@ export default function NarrativeDemo() {
                     transition={{
                       duration: 1.2,
                       delay: delay * 2,
-                      ease: [0.4, 0, 0.2, 1],
+                      ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                     }}
                     style={{
                       display: 'inline-block',
@@ -330,7 +330,7 @@ export default function NarrativeDemo() {
                     transition={{
                       duration: duration,
                       delay: delay * index * 0.5,
-                      ease: [0.4, 0, 0.2, 1],
+                      ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                     }}
                     style={{
                       display: 'flex',
@@ -533,7 +533,7 @@ export default function NarrativeDemo() {
                     transition={{
                       duration: duration,
                       delay: delay * index * 0.3 + 0.2,
-                      ease: [0.4, 0, 0.2, 1],
+                      ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                     }}
                     style={{
                       fontSize: item.type === 'heading' ? '1.25rem' : '0.9375rem',
@@ -564,8 +564,8 @@ export default function NarrativeDemo() {
                       </motion.span>
                     )}
                     {item.type === 'list' ? (
-                      <ul style={{ marginLeft: 'var(--spacing-lg)', paddingLeft: 0, listStyle: 'none' }}>
-                        {item.items.map((listItem, listIndex) => (
+                      <ul style={{ marginLeft: 'var(--spacing-lg)', paddingLeft: 0, listStyle: 'none' }}>        
+                        {item.items?.map((listItem, listIndex) => (
                           <motion.li
                             key={listIndex}
                             initial={{ opacity: 0, x: -10 }}
@@ -685,7 +685,7 @@ export default function NarrativeDemo() {
                   transition={{
                     duration: duration,
                     delay: delay,
-                    ease: [0.4, 0, 0.2, 1],
+                    ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                   }}
                   style={{
                     display: 'flex',
@@ -707,7 +707,7 @@ export default function NarrativeDemo() {
                       transition={{
                         duration: duration,
                         delay: delay * (index + 1) * 0.4 + 0.3,
-                        ease: [0.4, 0, 0.2, 1],
+                        ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                       }}
                       style={{
                         background: `${chip.color}15`,
@@ -733,7 +733,7 @@ export default function NarrativeDemo() {
                   transition={{
                     duration: duration,
                     delay: delay * 2.5,
-                    ease: [0.4, 0, 0.2, 1],
+                    ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                   }}
                   style={{
                     fontSize: '1.125rem',
@@ -751,7 +751,7 @@ export default function NarrativeDemo() {
                   transition={{
                     duration: duration,
                     delay: delay * 3,
-                    ease: [0.4, 0, 0.2, 1],
+                    ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
                   }}
                   style={{
                     display: 'flex',
