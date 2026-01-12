@@ -1,3 +1,9 @@
+/**
+ * ⚠️ IMPORTANT
+ * Do not refactor or change behavior in this file.
+ * Changes here must be minimal and error-driven only.
+ */
+
 import { db } from './db';
 
 /**
@@ -32,7 +38,7 @@ export async function checkTokenLimit(userId: string): Promise<{
   const isPaidUser = user.userType === 'paid';
   
   // Set the correct limit based on user type
-  const correctLimit = isPaidUser ? 100000 : 1000; // 100k for paid, 1k for trial
+  const correctLimit = isPaidUser ? 100000 : 5000; // 100k for paid, 5k for trial
   
   // If the stored limit doesn't match the correct limit, update it
   // This ensures existing paid users are migrated to the new limit

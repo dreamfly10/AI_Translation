@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = {
               image: user.image || undefined,
               userType: 'trial',
               tokensUsed: 0,
-              tokenLimit: 1000, // 1k tokens for trial users
+              tokenLimit: 5000, // 5k tokens for trial users
             });
           }
         }
