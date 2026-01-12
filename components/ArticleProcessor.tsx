@@ -22,6 +22,84 @@ interface ArticleProcessorProps {
   onArticleProcessed?: () => void;
 }
 
+// Helptip component
+function Helptip({ tooltip }: { tooltip: string }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setShowTooltip(false);
+      }
+    };
+
+    if (showTooltip) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTooltip]);
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }} ref={tooltipRef}>
+      <button
+        type="button"
+        onClick={() => setShowTooltip(!showTooltip)}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '0.25rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-text-secondary)',
+          fontSize: '1rem',
+          width: '20px',
+          height: '20px',
+          borderRadius: '50%',
+          transition: 'all var(--transition-base)'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = 'var(--color-text-primary)';
+          e.currentTarget.style.background = 'var(--color-background-secondary)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = 'var(--color-text-secondary)';
+          e.currentTarget.style.background = 'transparent';
+        }}
+        aria-label="Help"
+      >
+        ℹ️
+      </button>
+      {showTooltip && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '100%',
+            marginLeft: '0.5rem',
+            transform: 'translateY(-50%)',
+            padding: '0.75rem 1rem',
+            background: 'var(--color-background-secondary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            color: 'var(--color-text-primary)',
+            maxWidth: '300px',
+            zIndex: 1000,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            whiteSpace: 'normal',
+            lineHeight: 1.5
+          }}
+        >
+          {tooltip}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ArticleProcessor({ selectedArticleId, onArticleProcessed }: ArticleProcessorProps) {
   const { t, language } = useLanguage();
   const { openModal: openSettingsModal } = useSettingsModal();
@@ -818,8 +896,8 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
       setError({
         code: 'TTS_ERROR',
         message: 'Failed to generate audio',
-        userMessage: error.message || 'Failed to generate audio. Please ensure edge-tts is installed on the server.',
-        actionable: 'If this is the first time using TTS, please install edge-tts: pip install edge-tts',
+        userMessage: error.message || 'Failed to generate audio. Please check your Google Cloud TTS configuration.',
+        actionable: 'Please ensure Google Cloud Text-to-Speech API is enabled and credentials are configured correctly.',
         statusCode: 500,
       });
     } finally {
@@ -877,7 +955,15 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         </div>
       )}
       <form onSubmit={handleSubmit} className="card">
-        <h2>{t('processor.title')}</h2>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 'var(--spacing-sm)',
+          marginBottom: 'var(--spacing-md)'
+        }}>
+          <h2 style={{ margin: 0 }}>{t('processor.title')}</h2>
+          <Helptip tooltip={t('processor.title.helptip')} />
+        </div>
         
         <div style={{ 
           display: 'flex', 
@@ -1202,14 +1288,21 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         </div>
 
         <div style={{ marginTop: 'var(--spacing-md)' }}>
-          <label style={{ 
-            display: 'block',
-            marginBottom: 'var(--spacing-sm)',
-            fontWeight: 500,
-            color: 'var(--color-text-primary)'
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 'var(--spacing-sm)',
+            marginBottom: 'var(--spacing-sm)'
           }}>
-            {language === 'en' ? 'Language Selection' : '语言选择'}
-          </label>
+            <label style={{ 
+              display: 'block',
+              fontWeight: 500,
+              color: 'var(--color-text-primary)'
+            }}>
+              {t('processor.language.label')}
+            </label>
+            <Helptip tooltip={t('processor.language.helptip')} />
+          </div>
           <select
             value={targetLanguage}
             onChange={(e) => setTargetLanguage(e.target.value)}
@@ -1320,7 +1413,10 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             }
           }}
         >
-          {loading ? t('processor.processing') : t('processor.process')}
+          {loading ? t('processor.processing') : (() => {
+            const processKey = `processor.process.${inputType}`;
+            return t(processKey) || t('processor.process');
+          })()}
         </button>
 
         {error && (

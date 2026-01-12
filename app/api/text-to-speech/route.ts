@@ -1,10 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { spawn } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+
+// Initialize Google Cloud TTS client
+let ttsClient: TextToSpeechClient | null = null;
+
+function getTTSClient(): TextToSpeechClient {
+  if (ttsClient) {
+    return ttsClient;
+  }
+
+  // Try to initialize from environment variable (JSON string)
+  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  if (credentialsJson) {
+    try {
+      const credentials = JSON.parse(credentialsJson);
+      ttsClient = new TextToSpeechClient({ credentials });
+      return ttsClient;
+    } catch (error) {
+      console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', error);
+    }
+  }
+
+  // Fallback: try individual environment variables
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  const privateKey = process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const clientEmail = process.env.GOOGLE_CLOUD_CLIENT_EMAIL;
+
+  if (projectId && privateKey && clientEmail) {
+    ttsClient = new TextToSpeechClient({
+      projectId,
+      credentials: {
+        client_email: clientEmail,
+        private_key: privateKey,
+      },
+    });
+    return ttsClient;
+  }
+
+  // Last resort: try default credentials (for local development)
+  ttsClient = new TextToSpeechClient();
+  return ttsClient;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,245 +63,140 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine voice for edge-tts
+    // Determine language for Google Cloud TTS
     // Default to Chinese if language is 'zh' or text contains Chinese characters
     const isChinese = language === 'zh' || /[\u4e00-\u9fa5]/.test(text);
     
-    // Use high-quality neural voices
-    let voice = 'en-US-AriaNeural'; // High-quality English female voice
-    if (isChinese) {
-      voice = 'zh-CN-XiaoxiaoNeural'; // High-quality Chinese female voice
-    }
-    
-    // Create a temporary file for the audio output
-    const tempDir = os.tmpdir();
-    const audioFile = path.join(tempDir, `tts-${Date.now()}-${Math.random().toString(36).substring(7)}.mp3`);
+    const languageCode = isChinese ? 'zh-CN' : 'en-US';
 
-    // Create Python script to use edge-tts
-    const pythonScript = `
-import sys
-import os
-import json
-import asyncio
+    // Get TTS client
+    const client = getTTSClient();
 
-try:
-    import edge_tts
-    
-    async def generate_speech():
-        text = ${JSON.stringify(text)}
-        voice = ${JSON.stringify(voice)}
-        output_path = ${JSON.stringify(audioFile)}
-        
-        communicate = edge_tts.Communicate(text, voice)
-        await communicate.save(output_path)
-        print(json.dumps({"success": True, "path": output_path}))
-    
-    asyncio.run(generate_speech())
-except ImportError:
-    print(json.dumps({"error": "edge-tts not installed. Please run: pip install edge-tts"}, file=sys.stderr))
-    sys.exit(1)
-except Exception as e:
-    print(json.dumps({"error": str(e)}, file=sys.stderr))
-    sys.exit(1)
-`;
-
-    const pythonFile = path.join(tempDir, `tts-script-${Date.now()}-${Math.random().toString(36).substring(7)}.py`);
-    
-    return new Promise<NextResponse>((resolve, reject) => {
-      try {
-        // Write Python script to temporary file
-        fs.writeFileSync(pythonFile, pythonScript);
-
-        // Execute Python script with timeout
-        const TIMEOUT = 60000; // 60 seconds timeout
-        let timeoutId: NodeJS.Timeout | null = null;
-        
-        const pythonProcess = spawn('python', [pythonFile], {
-          shell: true,
-          stdio: ['ignore', 'pipe', 'pipe']
-        });
-
-        let stdout = '';
-        let stderr = '';
-
-        pythonProcess.stdout.on('data', (data: Buffer) => {
-          stdout += data.toString();
-        });
-
-        pythonProcess.stderr.on('data', (data: Buffer) => {
-          stderr += data.toString();
-        });
-
-        // Set timeout
-        timeoutId = setTimeout(() => {
-          pythonProcess.kill();
-          console.error('TTS generation timeout after 60 seconds');
-        }, TIMEOUT);
-
-        pythonProcess.on('close', (code: number) => {
-          // Clear timeout
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-          
-          // Clean up Python script
-          try {
-            if (fs.existsSync(pythonFile)) {
-              fs.unlinkSync(pythonFile);
-            }
-          } catch (cleanupError) {
-            console.error('Error cleaning up Python script:', cleanupError);
-          }
-
-          if (code !== 0) {
-            // Try to parse JSON error from stderr or stdout
-            let errorMsg = 'Unknown error';
-            let parsedError: any = null;
-            
-            // Try to parse JSON from stderr first
-            try {
-              const stderrLines = stderr.trim().split('\n');
-              for (const line of stderrLines) {
-                try {
-                  parsedError = JSON.parse(line);
-                  if (parsedError.error) {
-                    errorMsg = parsedError.error;
-                    break;
-                  }
-                } catch {}
-              }
-            } catch {}
-            
-            // If no JSON found, try stdout
-            if (!parsedError) {
-              try {
-                const stdoutLines = stdout.trim().split('\n');
-                for (const line of stdoutLines) {
-                  try {
-                    parsedError = JSON.parse(line);
-                    if (parsedError.error) {
-                      errorMsg = parsedError.error;
-                      break;
-                    }
-                  } catch {}
-                }
-              } catch {}
-            }
-            
-            // If still no parsed error, use raw output
-            if (!parsedError) {
-              errorMsg = stderr.trim() || stdout.trim() || 'Unknown error - Python script failed';
-            }
-            
-            console.error('edge-tts Python error:', { code, stderr, stdout, errorMsg });
-            
-            // Clean up audio file if it exists
-            try {
-              if (fs.existsSync(audioFile)) {
-                fs.unlinkSync(audioFile);
-              }
-            } catch {}
-
-            return reject(NextResponse.json(
-              { 
-                error: 'TTS generation failed', 
-                details: errorMsg.includes('not installed') || errorMsg.includes('ImportError')
-                  ? 'edge-tts is not installed. Please install it with: pip install edge-tts'
-                  : errorMsg
-              },
-              { status: 500 }
-            ));
-          }
-
-          // Check if audio file was created
-          if (!fs.existsSync(audioFile)) {
-            return reject(NextResponse.json(
-              { error: 'Audio file was not generated' },
-              { status: 500 }
-            ));
-          }
-
-          try {
-            // Read the audio file
-            const audioBuffer = fs.readFileSync(audioFile);
-            
-            // Clean up audio file
-            fs.unlinkSync(audioFile);
-
-            // Return audio as base64
-            resolve(NextResponse.json({
-              audio: audioBuffer.toString('base64'),
-              format: 'mp3'
-            }));
-          } catch (readError: any) {
-            // Clean up on error
-            try {
-              if (fs.existsSync(audioFile)) {
-                fs.unlinkSync(audioFile);
-              }
-            } catch {}
-
-            reject(NextResponse.json(
-              { error: 'Failed to read audio file', details: readError.message },
-              { status: 500 }
-            ));
-          }
-        });
-
-        pythonProcess.on('error', (err: Error) => {
-          // Clean up on error
-          try {
-            if (fs.existsSync(pythonFile)) {
-              fs.unlinkSync(pythonFile);
-            }
-            if (fs.existsSync(audioFile)) {
-              fs.unlinkSync(audioFile);
-            }
-          } catch {}
-
-          console.error('Python process error:', err);
-          const errorMessage = err.message.includes('spawn') 
-            ? 'Python not found. Please ensure Python is installed and available in PATH.'
-            : err.message;
-          reject(NextResponse.json(
-            { error: 'Failed to start TTS process', details: errorMessage },
-            { status: 500 }
-          ));
-        });
-      } catch (error: any) {
-        // Clean up on error
-        try {
-          if (fs.existsSync(pythonFile)) {
-            fs.unlinkSync(pythonFile);
-          }
-          if (fs.existsSync(audioFile)) {
-            fs.unlinkSync(audioFile);
-          }
-        } catch {}
-
-        reject(NextResponse.json(
-          { error: 'Failed to create TTS script', details: error.message },
-          { status: 500 }
-        ));
-      }
-    });
-  } catch (error: any) {
-    console.error('TTS API error:', error);
-    // Ensure we always return valid JSON
+    // First, try to list available voices to find a suitable one
+    // If that fails, use languageCode only and let Google pick a default voice
+    let response;
     try {
+      // List available voices for the language
+      const [voicesResponse] = await client.listVoices({
+        languageCode,
+      });
+
+      // Find a suitable female voice (prefer Neural2, then Wavenet, then Standard)
+      let selectedVoice: any = null;
+      
+      if (voicesResponse.voices && voicesResponse.voices.length > 0) {
+        // Try to find Neural2 voice first
+        selectedVoice = voicesResponse.voices.find((v: any) => 
+          v.name?.includes('Neural2') && 
+          (v.ssmlGender === 'FEMALE' || v.ssmlGender === 'SSML_VOICE_GENDER_FEMALE')
+        );
+        
+        // If no Neural2, try Wavenet
+        if (!selectedVoice) {
+          selectedVoice = voicesResponse.voices.find((v: any) => 
+            v.name?.includes('Wavenet') && 
+            (v.ssmlGender === 'FEMALE' || v.ssmlGender === 'SSML_VOICE_GENDER_FEMALE')
+          );
+        }
+        
+        // If still no match, try any female voice
+        if (!selectedVoice) {
+          selectedVoice = voicesResponse.voices.find((v: any) => 
+            v.ssmlGender === 'FEMALE' || v.ssmlGender === 'SSML_VOICE_GENDER_FEMALE'
+          );
+        }
+        
+        // Last resort: use the first available voice
+        if (!selectedVoice) {
+          selectedVoice = voicesResponse.voices[0];
+        }
+      }
+
+      // Synthesize speech with the selected voice or languageCode only
+      if (selectedVoice) {
+        console.log(`Using voice: ${selectedVoice.name}`);
+        [response] = await client.synthesizeSpeech({
+          input: { text },
+          voice: {
+            languageCode,
+            name: selectedVoice.name,
+            ssmlGender: 'FEMALE' as const,
+          },
+          audioConfig: {
+            audioEncoding: 'MP3' as const,
+            speakingRate: 1.0,
+            pitch: 0.0,
+          },
+        });
+      } else {
+        // Fallback: use languageCode only, let Google pick a default voice
+        console.log(`No specific voice found, using languageCode: ${languageCode}`);
+        [response] = await client.synthesizeSpeech({
+          input: { text },
+          voice: {
+            languageCode,
+            ssmlGender: 'FEMALE' as const,
+          },
+          audioConfig: {
+            audioEncoding: 'MP3' as const,
+            speakingRate: 1.0,
+            pitch: 0.0,
+          },
+        });
+      }
+    } catch (listError: any) {
+      // If listing voices fails, try with languageCode only
+      console.warn('Failed to list voices, using languageCode only:', listError.message);
+      [response] = await client.synthesizeSpeech({
+        input: { text },
+        voice: {
+          languageCode,
+          ssmlGender: 'FEMALE' as const,
+        },
+        audioConfig: {
+          audioEncoding: 'MP3' as const,
+          speakingRate: 1.0,
+          pitch: 0.0,
+        },
+      });
+    }
+
+    if (!response.audioContent) {
       return NextResponse.json(
-        { error: 'Internal server error', details: error.message || String(error) },
+        { error: 'No audio content received from TTS service' },
         { status: 500 }
       );
-    } catch (jsonError) {
-      // Fallback if JSON.stringify fails
-      return new NextResponse(
-        JSON.stringify({ error: 'Internal server error', details: 'An unexpected error occurred' }),
-        { 
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
     }
+
+    // Convert audio content to base64
+    const audioBuffer = Buffer.from(response.audioContent);
+    const base64Audio = audioBuffer.toString('base64');
+
+    return NextResponse.json({
+      audio: base64Audio,
+      format: 'mp3'
+    });
+  } catch (error: any) {
+    console.error('Google Cloud TTS error:', error);
+    
+    // Provide helpful error messages
+    let errorMessage = 'TTS generation failed';
+    let details = error.message || String(error);
+    
+    if (error.message?.includes('credentials') || error.message?.includes('authentication')) {
+      errorMessage = 'TTS authentication failed';
+      details = 'Google Cloud credentials are missing or invalid. Please check your environment variables.';
+    } else if (error.message?.includes('quota') || error.message?.includes('billing')) {
+      errorMessage = 'TTS quota exceeded';
+      details = 'Google Cloud TTS quota has been exceeded. Please check your billing and quota settings.';
+    }
+
+    return NextResponse.json(
+      { 
+        error: errorMessage,
+        details 
+      },
+      { status: 500 }
+    );
   }
 }
