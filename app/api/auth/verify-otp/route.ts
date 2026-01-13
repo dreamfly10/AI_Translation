@@ -55,8 +55,8 @@ export async function POST(request: Request) {
     if (now > otpExpiresAt) {
       // Clear expired OTP
       await db.user.update(user.id, {
-        otpCode: null,
-        otpExpiresAt: null,
+        otpCode: undefined,
+        otpExpiresAt: undefined,
         otpAttempts: 0,
       });
       return NextResponse.json(
@@ -69,8 +69,8 @@ export async function POST(request: Request) {
     if ((user.otpAttempts || 0) >= MAX_OTP_ATTEMPTS) {
       // Clear OTP after max attempts
       await db.user.update(user.id, {
-        otpCode: null,
-        otpExpiresAt: null,
+        otpCode: undefined,
+        otpExpiresAt: undefined,
         otpAttempts: 0,
       });
       return NextResponse.json(
@@ -104,8 +104,8 @@ export async function POST(request: Request) {
     await db.user.update(user.id, {
       resetToken: resetToken,
       resetTokenExpiresAt: new Date(now.getTime() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000),
-      otpCode: null,
-      otpExpiresAt: null,
+      otpCode: undefined,
+      otpExpiresAt: undefined,
       otpAttempts: 0,
     });
 

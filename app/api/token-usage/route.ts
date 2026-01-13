@@ -38,8 +38,8 @@ export async function GET() {
               
               if (subscriptions.data.length > 0) {
                 hasActiveSubscription = true;
-                const subscription = subscriptions.data[0];
-                if (subscription.current_period_end) {
+                const subscription = subscriptions.data[0] as any;
+                if (subscription?.current_period_end) {
                   subscriptionExpiresAt = new Date(subscription.current_period_end * 1000);
                 }
               }

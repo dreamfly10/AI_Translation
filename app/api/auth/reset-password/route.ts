@@ -64,8 +64,8 @@ export async function POST(request: Request) {
     if (now > tokenExpiresAt) {
       // Clear expired token
       await db.user.update(user.id, {
-        resetToken: null,
-        resetTokenExpiresAt: null,
+        resetToken: undefined,
+        resetTokenExpiresAt: undefined,
       });
       return NextResponse.json(
         { error: 'TOKEN_EXPIRED', message: 'Reset token has expired. Please request a new password reset.' },
@@ -79,8 +79,8 @@ export async function POST(request: Request) {
     // Update password and clear reset token
     await db.user.update(user.id, {
       password: hashedPassword,
-      resetToken: null,
-      resetTokenExpiresAt: null,
+      resetToken: undefined,
+      resetTokenExpiresAt: undefined,
     });
 
     console.log(`[Password Reset] Password reset successful for ${user.email}`);

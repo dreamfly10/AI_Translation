@@ -142,12 +142,12 @@ export const db = {
       if (data.showLanguageToggle !== undefined) updateData.show_language_toggle = data.showLanguageToggle;
       if (data.defaultUILanguage !== undefined) updateData.default_ui_language = data.defaultUILanguage;
       if (data.enabledThinkingStyles !== undefined) updateData.enabled_thinking_styles = data.enabledThinkingStyles;
-      if (data.resetToken !== undefined) updateData.reset_token = data.resetToken;
+      if (data.resetToken !== undefined) updateData.reset_token = data.resetToken || null;
       if (data.resetTokenExpiresAt !== undefined)
         updateData.reset_token_expires_at = data.resetTokenExpiresAt
           ? new Date(data.resetTokenExpiresAt).toISOString()
           : null;
-      if (data.otpCode !== undefined) updateData.otp_code = data.otpCode;
+      if (data.otpCode !== undefined) updateData.otp_code = data.otpCode || null;
       if (data.otpExpiresAt !== undefined)
         updateData.otp_expires_at = data.otpExpiresAt
           ? new Date(data.otpExpiresAt).toISOString()

@@ -144,8 +144,8 @@ export async function POST(request: Request) {
       console.error('[Password Reset] Error sending email:', emailError);
       // Clear OTP if email fails
       await db.user.update(user.id, {
-        otpCode: null,
-        otpExpiresAt: null,
+        otpCode: undefined,
+        otpExpiresAt: undefined,
       });
       throw new Error('Failed to send password reset email. Please try again later.');
     }

@@ -15,6 +15,7 @@ import { useSettingsModal } from '@/contexts/SettingsModalContext';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { GetStartedModal } from '@/components/GetStartedModal';
 import NarrativeDemo from '@/components/NarrativeDemo';
+import { SupportForm } from '@/components/SupportForm';
 
 function HomeContent() {
   const { data: session, status } = useSession();
@@ -23,6 +24,7 @@ function HomeContent() {
   const { isOpen, mode, closeModal } = useAuthModal();
   const { isOpen: isSettingsOpen, closeModal: closeSettings } = useSettingsModal();
   const [showGetStarted, setShowGetStarted] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   // Handle upgrade success redirect
   useEffect(() => {
@@ -415,6 +417,75 @@ function HomeContent() {
         isOpen={showGetStarted} 
         onClose={() => setShowGetStarted(false)}
       />
+
+      {/* Support Form Modal */}
+      <SupportForm 
+        isOpen={showSupport} 
+        onClose={() => setShowSupport(false)}
+      />
+
+      {/* Floating Contact Support Button - Only show on landing page (when not logged in) */}
+      {!session && (
+        <button
+          onClick={() => setShowSupport(true)}
+          style={{
+            position: 'fixed',
+            bottom: 'var(--spacing-xl)',
+            right: 'var(--spacing-xl)',
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: '#000000',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)',
+            transition: 'all var(--transition-base)',
+            padding: 0,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2)';
+          }}
+          aria-label={t('support.title')}
+        >
+          {/* Chat/Speech Bubble Icon */}
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 28 28"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* White speech bubble with rounded corners */}
+            <path
+              d="M6 8C6 6.89543 6.89543 6 8 6H16C17.1046 6 18 6.89543 18 8V14C18 15.1046 17.1046 16 16 16H12L8 20V16H8C6.89543 16 6 15.1046 6 14V8Z"
+              fill="#FFFFFF"
+              fillRule="evenodd"
+            />
+            {/* Small triangular tail pointing down-right */}
+            <path
+              d="M16 16L18 20L14 18L16 16Z"
+              fill="#FFFFFF"
+            />
+            {/* Subtle curved smile/underline inside bubble */}
+            <path
+              d="M9 12C9 12 10 13.5 12 13.5C14 13.5 15 12 15 12"
+              stroke="#000000"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              fill="none"
+            />
+          </svg>
+        </button>
+      )}
     </>
   );
 }
