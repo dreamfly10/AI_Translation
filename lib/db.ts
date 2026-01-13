@@ -19,6 +19,13 @@ export interface User {
   showLanguageToggle?: boolean;
   defaultUILanguage?: 'en' | 'zh';
   enabledThinkingStyles?: string[]; // Array of StyleArchetype keys
+  // Password reset fields
+  resetToken?: string;
+  resetTokenExpiresAt?: Date | string;
+  otpCode?: string;
+  otpExpiresAt?: Date | string;
+  otpAttempts?: number;
+  lastOtpRequestAt?: Date | string;
   createdAt: Date | string;
   updatedAt?: Date | string;
 }
@@ -135,6 +142,21 @@ export const db = {
       if (data.showLanguageToggle !== undefined) updateData.show_language_toggle = data.showLanguageToggle;
       if (data.defaultUILanguage !== undefined) updateData.default_ui_language = data.defaultUILanguage;
       if (data.enabledThinkingStyles !== undefined) updateData.enabled_thinking_styles = data.enabledThinkingStyles;
+      if (data.resetToken !== undefined) updateData.reset_token = data.resetToken;
+      if (data.resetTokenExpiresAt !== undefined)
+        updateData.reset_token_expires_at = data.resetTokenExpiresAt
+          ? new Date(data.resetTokenExpiresAt).toISOString()
+          : null;
+      if (data.otpCode !== undefined) updateData.otp_code = data.otpCode;
+      if (data.otpExpiresAt !== undefined)
+        updateData.otp_expires_at = data.otpExpiresAt
+          ? new Date(data.otpExpiresAt).toISOString()
+          : null;
+      if (data.otpAttempts !== undefined) updateData.otp_attempts = data.otpAttempts;
+      if (data.lastOtpRequestAt !== undefined)
+        updateData.last_otp_request_at = data.lastOtpRequestAt
+          ? new Date(data.lastOtpRequestAt).toISOString()
+          : null;
 
       const { data: user, error } = await supabaseServer
         .from('users')
@@ -173,6 +195,12 @@ export const db = {
         showLanguageToggle: row.show_language_toggle !== undefined ? row.show_language_toggle : true,
         defaultUILanguage: row.default_ui_language || 'en',
         enabledThinkingStyles: (row.enabled_thinking_styles as string[]) || null,
+        resetToken: row.reset_token,
+        resetTokenExpiresAt: row.reset_token_expires_at ? new Date(row.reset_token_expires_at) : undefined,
+        otpCode: row.otp_code,
+        otpExpiresAt: row.otp_expires_at ? new Date(row.otp_expires_at) : undefined,
+        otpAttempts: row.otp_attempts || 0,
+        lastOtpRequestAt: row.last_otp_request_at ? new Date(row.last_otp_request_at) : undefined,
         createdAt: row.created_at ? new Date(row.created_at) : new Date(),
         updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
       };

@@ -44,3 +44,6 @@ next-env.d.ts
 
 .env.local
 
+# YouTube extraction debug files (created by ytdl-core)
+*-player-script.js
+*-watch.html

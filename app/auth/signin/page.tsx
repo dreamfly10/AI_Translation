@@ -98,6 +98,21 @@ function SignInContent() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          <div style={{ textAlign: 'right', marginTop: 'var(--spacing-xs)' }}>
+            <Link 
+              href="/auth/forgot-password" 
+              style={{ 
+                color: 'var(--color-primary)', 
+                textDecoration: 'none',
+                fontSize: '0.875rem',
+                transition: 'color var(--transition-base)'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
+            >
+              {t('auth.forgotPassword')}
+            </Link>
+          </div>
           <button 
             type="submit" 
             disabled={loading} 
