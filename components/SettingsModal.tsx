@@ -237,7 +237,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             ? 'Database column missing. Please run the migration script in Supabase SQL Editor: supabase/migrations/add_user_preferences.sql'
             : '数据库列缺失。请在 Supabase SQL 编辑器中运行迁移脚本：supabase/migrations/add_user_preferences.sql';
         } else if (data.details) {
-          errorMessage = `${errorMessage}: ${data.details}`;
+          // Handle both string and array details
+          const detailsStr = typeof data.details === 'string' 
+            ? data.details 
+            : Array.isArray(data.details)
+            ? data.details.map((d: any) => typeof d === 'string' ? d : `${d.path || ''}: ${d.message || ''}`).join('; ')
+            : String(data.details);
+          errorMessage = detailsStr.includes('Invalid preferences data') 
+            ? detailsStr 
+            : `${errorMessage}: ${detailsStr}`;
         }
         setError(errorMessage);
       }

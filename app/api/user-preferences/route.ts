@@ -20,7 +20,10 @@ const preferencesSchema = z.object({
   defaultTargetLanguage: z.enum(['zh', 'en', 'es', 'fr', 'de', 'ja', 'ko', 'pt', 'it', 'ru', 'ar']).optional().default('zh'),
   showLanguageToggle: z.boolean().optional(),
   defaultUILanguage: z.enum(['en', 'zh']).optional().default('en'),
-  enabledThinkingStyles: z.array(z.string()).optional(),
+  enabledThinkingStyles: z.union([
+    z.array(z.string()),
+    z.null()
+  ]).optional().transform(val => val === null ? undefined : val),
 });
 
 export async function GET(request: Request) {
@@ -117,8 +120,18 @@ export async function PUT(request: Request) {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      // Format Zod errors into a readable message
+      const errorMessages = error.errors.map(err => {
+        const path = err.path.join('.');
+        return `${path}: ${err.message}`;
+      }).join('; ');
+      
       return NextResponse.json(
-        { error: 'VALIDATION_ERROR', message: 'Invalid preferences data', details: error.errors },
+        { 
+          error: 'VALIDATION_ERROR', 
+          message: `Invalid preferences data: ${errorMessages}`,
+          details: errorMessages
+        },
         { status: 400 }
       );
     }

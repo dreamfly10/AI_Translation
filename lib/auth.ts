@@ -99,7 +99,32 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       // Store user id in token during sign in
       if (user) {
-        token.id = user.id;
+        // For Google OAuth, user.id is the Google ID, not the database ID
+        // We need to fetch the database user ID by email
+        if (account?.provider === 'google' && user.email) {
+          try {
+            // Fetch the database user by email (created in signIn callback)
+            const dbUser = await db.user.findByEmail(user.email);
+            if (dbUser) {
+              token.id = dbUser.id;
+            } else {
+              // User was just created in signIn callback, might need a small delay
+              // Try fetching again after a brief wait
+              await new Promise(resolve => setTimeout(resolve, 100));
+              const retryUser = await db.user.findByEmail(user.email);
+              if (retryUser) {
+                token.id = retryUser.id;
+              } else {
+                console.error('User not found in database after Google OAuth sign-in:', user.email);
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching user in jwt callback:', error);
+          }
+        } else if (user.id) {
+          // For credentials provider, user.id is already the database ID
+          token.id = user.id;
+        }
         token.email = user.email;
       }
       return token;

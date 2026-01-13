@@ -80,17 +80,19 @@ function Helptip({ tooltip }: { tooltip: string }) {
             left: '100%',
             marginLeft: '0.5rem',
             transform: 'translateY(-50%)',
-            padding: '0.75rem 1rem',
+            padding: '0.5rem 0.75rem',
             background: 'var(--color-background-secondary)',
             border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-md)',
             fontSize: '0.875rem',
             color: 'var(--color-text-primary)',
-            maxWidth: '300px',
+            maxWidth: 'none',
+            minWidth: 'max-content',
             zIndex: 1000,
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            whiteSpace: 'normal',
-            lineHeight: 1.5
+            whiteSpace: 'nowrap',
+            lineHeight: 1.4,
+            display: 'inline-block'
           }}
         >
           {tooltip}
@@ -865,7 +867,26 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         } catch (err) {
           errorData = { error: 'Unknown error', details: 'Failed to read error response' };
         }
-        const errorMessage = errorData.details || errorData.error || 'Failed to generate audio';
+
+        // Handle TTS configuration errors specifically
+        if (errorData.error === 'TTS_CONFIG_ERROR') {
+          const ttsError: AppError = {
+            code: 'TTS_CONFIG_ERROR',
+            message: errorData.message || 'Text-to-Speech is not configured',
+            userMessage: errorData.message || 'Text-to-Speech is not configured',
+            actionable: errorData.actionable || 'Please contact support if this issue persists.',
+            statusCode: response.status,
+          };
+          setError(ttsError);
+          if (isInsights) {
+            setTtsLoadingInsights(false);
+          } else {
+            setTtsLoading(false);
+          }
+          return;
+        }
+
+        const errorMessage = errorData.details || errorData.error || errorData.message || 'Failed to generate audio';
         throw new Error(errorMessage);
       }
 

@@ -4,45 +4,84 @@ import { authOptions } from '@/lib/auth';
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import { createNextErrorResponse, ErrorCodes } from '@/lib/error-handler';
 
+export const runtime = 'nodejs'; // IMPORTANT: Ensure Node.js runtime on Vercel
+
 // Initialize Google Cloud TTS client
 let ttsClient: TextToSpeechClient | null = null;
 
-function getTTSClient(): TextToSpeechClient {
-  if (ttsClient) {
-    return ttsClient;
+function getGoogleCredentials() {
+  // Option A (recommended for Vercel): entire JSON key as base64
+  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_B64;
+  if (b64) {
+    try {
+      const jsonStr = Buffer.from(b64, 'base64').toString('utf-8');
+      const creds = JSON.parse(jsonStr);
+      
+      // Handle newlines in private_key (some JSON keys may contain real newlines)
+      if (creds.private_key) {
+        creds.private_key = String(creds.private_key).replace(/\\n/g, '\n');
+      }
+      
+      return creds;
+    } catch (error) {
+      console.error('Failed to parse GOOGLE_SERVICE_ACCOUNT_B64:', error);
+    }
   }
 
-  // Try to initialize from environment variable (JSON string)
+  // Option B: JSON string (existing method)
   const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
   if (credentialsJson) {
     try {
       const credentials = JSON.parse(credentialsJson);
-      ttsClient = new TextToSpeechClient({ credentials });
-      return ttsClient;
+      if (credentials.private_key) {
+        credentials.private_key = String(credentials.private_key).replace(/\\n/g, '\n');
+      }
+      return credentials;
     } catch (error) {
       console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', error);
     }
   }
 
-  // Fallback: try individual environment variables
-  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-  const privateKey = process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  const clientEmail = process.env.GOOGLE_CLOUD_CLIENT_EMAIL;
+  // Option C: separate env vars (fallback)
+  const client_email = process.env.GOOGLE_CLOUD_CLIENT_EMAIL;
+  const private_key = process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  
+  if (client_email && private_key) {
+    return { client_email, private_key };
+  }
 
-  if (projectId && privateKey && clientEmail) {
-    ttsClient = new TextToSpeechClient({
-      projectId,
-      credentials: {
-        client_email: clientEmail,
-        private_key: privateKey,
-      },
-    });
+  return null;
+}
+
+function getTTSClient(): TextToSpeechClient | null {
+  if (ttsClient) {
     return ttsClient;
   }
 
-  // Last resort: try default credentials (for local development)
-  ttsClient = new TextToSpeechClient();
-  return ttsClient;
+  const credentials = getGoogleCredentials();
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+
+  if (!credentials || !projectId) {
+    console.error('Missing Google credentials:', {
+      hasProjectId: Boolean(projectId),
+      hasB64: Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_B64),
+      hasJson: Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON),
+      hasClientEmail: Boolean(process.env.GOOGLE_CLOUD_CLIENT_EMAIL),
+      privateKeyLen: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.length ?? 0,
+    });
+    return null;
+  }
+
+  try {
+    ttsClient = new TextToSpeechClient({
+      credentials,
+      projectId,
+    });
+    return ttsClient;
+  } catch (error) {
+    console.error('Failed to initialize TTS client:', error);
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -76,6 +115,16 @@ export async function POST(request: NextRequest) {
 
     // Get TTS client
     const client = getTTSClient();
+    if (!client) {
+      return NextResponse.json(
+        { 
+          error: 'TTS_CONFIG_ERROR',
+          message: 'Google Cloud Text-to-Speech API is not configured. Please ensure the API is enabled and credentials are set up correctly.',
+          actionable: 'Please ensure Google Cloud Text-to-Speech API is enabled and credentials are configured correctly.'
+        },
+        { status: 401 }
+      );
+    }
 
     // First, try to list available voices to find a suitable one
     // If that fails, use languageCode only and let Google pick a default voice
@@ -180,7 +229,33 @@ export async function POST(request: NextRequest) {
       format: 'mp3'
     });
   } catch (error: any) {
-    // All errors are sanitized - no backend details exposed
+    // Enhanced error logging for Vercel
+    console.error('TTS route error:', error?.message || error, error);
+    
+    // Check if it's a Google Cloud authentication/configuration error
+    const errorMessage = error?.message || String(error);
+    const isGoogleAuthError = 
+      errorMessage.includes('Could not load the default credentials') ||
+      errorMessage.includes('Unable to detect a Project Id') ||
+      errorMessage.includes('Could not find a default credentials file') ||
+      errorMessage.includes('UNAUTHENTICATED') ||
+      errorMessage.includes('PERMISSION_DENIED') ||
+      errorMessage.includes('API not enabled') ||
+      error?.code === 7 || // UNAUTHENTICATED
+      error?.code === 403; // PERMISSION_DENIED
+
+    if (isGoogleAuthError) {
+      return NextResponse.json(
+        { 
+          error: 'TTS_CONFIG_ERROR',
+          message: 'Google Cloud Text-to-Speech API is not configured. Please ensure the API is enabled and credentials are set up correctly.',
+          actionable: 'Please ensure Google Cloud Text-to-Speech API is enabled and credentials are configured correctly.'
+        },
+        { status: 401 }
+      );
+    }
+
+    // All other errors are sanitized
     const sanitized = createNextErrorResponse(error, 'TTS Generation');
     return NextResponse.json(
       { 
