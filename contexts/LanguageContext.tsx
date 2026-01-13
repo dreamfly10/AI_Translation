@@ -362,34 +362,39 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // Load language from localStorage and user preferences on mount
   useEffect(() => {
     const loadLanguage = async () => {
-      // First, try to load from localStorage (user's manual selection takes priority)
+      // Try to load from user preferences first (for logged-in users)
+      try {
+        const response = await fetch('/api/user-preferences');
+        if (response.ok) {
+          // User is logged in, use their preferences
+          const data = await response.json();
+          const defaultLang = data.defaultUILanguage || 'en';
+          if (defaultLang === 'en' || defaultLang === 'zh') {
+            setLanguageState(defaultLang);
+            localStorage.setItem('language', defaultLang);
+            return;
+          }
+        } else if (response.status === 401) {
+          // User is not logged in (landing page) - default to English
+          setLanguageState('en');
+          // Don't overwrite localStorage, but don't use it either for landing page
+          // This allows language toggle to work but defaults to English on page load
+          return;
+        }
+      } catch (err) {
+        // API failed - likely landing page, default to English
+        setLanguageState('en');
+        return;
+      }
+      
+      // Fallback: check localStorage only if user preferences didn't work
+      // But for landing page, we've already returned above
       const savedLanguage = localStorage.getItem('language') as Language;
       if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'zh')) {
         setLanguageState(savedLanguage);
       } else {
-        // If no localStorage preference, try to load from user preferences
-        try {
-          const response = await fetch('/api/user-preferences');
-          if (response.ok) {
-            const data = await response.json();
-            const defaultLang = data.defaultUILanguage || 'en';
-            if (defaultLang === 'en' || defaultLang === 'zh') {
-              setLanguageState(defaultLang);
-              localStorage.setItem('language', defaultLang);
-            } else {
-              setLanguageState('en');
-              localStorage.setItem('language', 'en');
-            }
-          } else {
-            // Fallback to English if API fails
-            setLanguageState('en');
-            localStorage.setItem('language', 'en');
-          }
-        } catch (err) {
-          // Fallback to English if API fails
-          setLanguageState('en');
-          localStorage.setItem('language', 'en');
-        }
+        setLanguageState('en');
+        localStorage.setItem('language', 'en');
       }
     };
     loadLanguage();
