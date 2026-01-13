@@ -327,10 +327,21 @@ export async function POST(request: Request) {
         });
 
         // Calculate actual tokens used
+        // Note: articleText contains the transcribed text from Whisper for videos, so tokens are correctly counted
         const inputTokens = await calculateTokensUsed(articleText);
         const translationTokens = await calculateTokensUsed(translation);
         const insightsTokens = await calculateTokensUsed(insights);
         const totalTokens = inputTokens + translationTokens + insightsTokens;
+        
+        console.log('[TOKEN TRACKING] Token calculation:', {
+          inputType,
+          inputTokens,
+          translationTokens,
+          insightsTokens,
+          totalTokens,
+          articleTextLength: articleText.length,
+          userId: session.user.id
+        });
 
         // Final check before consuming tokens (in case estimation was off or subscription expired)
         const finalTokenStatus = await checkTokenLimit(session.user.id);
@@ -505,9 +516,22 @@ export async function POST(request: Request) {
               
               // Only consume tokens AFTER successful save
               try {
+                console.log('[TOKEN TRACKING] Consuming tokens after successful save:', {
+                  userId: session.user.id,
+                  totalTokens,
+                  inputType
+                });
                 await consumeTokens(session.user.id, totalTokens);
+                console.log('[TOKEN TRACKING] Successfully consumed tokens');
               } catch (tokenError) {
-                console.error('Error consuming tokens after save:', tokenError);
+                console.error('[TOKEN TRACKING] Error consuming tokens after save:', tokenError);
+                // Send error event to frontend so user knows tokens weren't consumed
+                sendSSE(controller, 'token_error', {
+                  error: 'TOKEN_CONSUMPTION_FAILED',
+                  message: 'Article processed but token consumption failed. Please contact support.',
+                  userMessage: 'Article was processed successfully, but there was an issue updating your token usage. Please contact support if this persists.',
+                  tokensUsed: totalTokens
+                });
                 // Log but don't fail - article is already saved
               }
             }
@@ -520,14 +544,44 @@ export async function POST(request: Request) {
               errorDetails: errorMessage,
               userMessage: 'Article processed but could not be saved to history. Results are still available.'
             });
-            // Don't consume tokens if save failed
+            // Still consume tokens even if save failed - processing was successful
+            try {
+              console.log('[TOKEN TRACKING] Consuming tokens despite save failure:', {
+                userId: session.user.id,
+                totalTokens,
+                inputType
+              });
+              await consumeTokens(session.user.id, totalTokens);
+              console.log('[TOKEN TRACKING] Successfully consumed tokens after save failure');
+            } catch (tokenError) {
+              console.error('[TOKEN TRACKING] Error consuming tokens after save failure:', tokenError);
+              sendSSE(controller, 'token_error', {
+                error: 'TOKEN_CONSUMPTION_FAILED',
+                message: 'Article processed but token consumption failed. Please contact support.',
+                userMessage: 'Article was processed successfully, but there was an issue updating your token usage. Please contact support if this persists.',
+                tokensUsed: totalTokens
+              });
+            }
           }
         } else {
           // If Supabase is not configured, still consume tokens (for development/testing)
           try {
+            console.log('[TOKEN TRACKING] Consuming tokens (Supabase not configured):', {
+              userId: session.user.id,
+              totalTokens,
+              inputType
+            });
             await consumeTokens(session.user.id, totalTokens);
+            console.log('[TOKEN TRACKING] Successfully consumed tokens');
           } catch (tokenError) {
-            console.error('Error consuming tokens:', tokenError);
+            console.error('[TOKEN TRACKING] Error consuming tokens:', tokenError);
+            // Send error event to frontend
+            sendSSE(controller, 'token_error', {
+              error: 'TOKEN_CONSUMPTION_FAILED',
+              message: 'Article processed but token consumption failed. Please contact support.',
+              userMessage: 'Article was processed successfully, but there was an issue updating your token usage. Please contact support if this persists.',
+              tokensUsed: totalTokens
+            });
           }
         }
 

@@ -22,6 +22,11 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    // Prevent FOUC (Flash of Unstyled Content)
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('loaded');
+    }
+    
     // Handle unhandled promise rejections (common with browser extensions)
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const errorMessage = event.reason?.message || String(event.reason || '');

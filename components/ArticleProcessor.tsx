@@ -654,11 +654,22 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                     setProgress(100);
                   }
                 }
+              } else if (currentEvent === 'token_error') {
+                console.error('Token consumption error:', data);
+                // Show warning but don't block the user - article was processed
+                setError({
+                  code: 'TOKEN_CONSUMPTION_FAILED',
+                  message: data.userMessage || 'Token tracking failed',
+                  userMessage: data.userMessage || 'Article processed but token usage may not have been updated. Please refresh the page to check your token balance.',
+                  actionable: 'Please refresh the page to check your token balance, or contact support if this persists.',
+                  statusCode: 500
+                });
               } else if (currentEvent === 'complete') {
                 console.log('Complete event received:', {
                   hasTranslation: !!data.translation,
                   hasInsights: !!data.insights,
                   articleId: data.articleId,
+                  tokensUsed: data.tokensUsed,
                   inputType: inputType
                 });
                 
@@ -669,6 +680,13 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                   style: data.style,
                   articleId: data.articleId,
                 });
+                
+                // Refresh token usage if tokens were used
+                if (data.tokensUsed) {
+                  console.log('Tokens used:', data.tokensUsed, '- refreshing token usage display');
+                  // Trigger a token usage refresh by dispatching an event
+                  window.dispatchEvent(new CustomEvent('refreshTokenUsage'));
+                }
                 setStreamingTranslation('');
                 setStreamingInsights('');
                 setCurrentStage('');

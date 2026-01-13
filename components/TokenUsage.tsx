@@ -120,7 +120,17 @@ export function TokenUsage() {
     fetchUsage();
     // Refresh every 30 seconds
     const interval = setInterval(fetchUsage, 30000);
-    return () => clearInterval(interval);
+    
+    // Listen for manual refresh events (e.g., after upgrade)
+    const handleRefresh = () => {
+      fetchUsage();
+    };
+    window.addEventListener('refreshTokenUsage', handleRefresh);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refreshTokenUsage', handleRefresh);
+    };
   }, []);
 
   if (loading) {

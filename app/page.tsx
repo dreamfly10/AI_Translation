@@ -30,19 +30,49 @@ function HomeContent() {
   useEffect(() => {
     const upgradeSuccess = searchParams?.get('upgrade');
     if (upgradeSuccess === 'success') {
-      // Refresh to show updated status
-      setTimeout(() => {
-        window.history.replaceState({}, '', '/');
-        window.location.reload();
-      }, 2000);
+      // Update URL without reload
+      window.history.replaceState({}, '', '/');
+      // Trigger token usage refresh without full page reload
+      window.dispatchEvent(new CustomEvent('refreshTokenUsage'));
+      // Also trigger a session refresh
+      if (typeof window !== 'undefined' && (window as any).nextAuth) {
+        // NextAuth will automatically refresh session on next check
+      }
     }
   }, [searchParams]);
 
 
   if (status === 'loading') {
     return (
-      <div className="container" style={{ paddingTop: '4rem', textAlign: 'center' }}>
-        <div style={{ fontSize: '1.25rem', color: 'var(--color-text-secondary)' }}>{t('common.loading')}</div>
+      <div style={{ 
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Navigation skeleton to prevent layout shift */}
+        <nav style={{ padding: '0 var(--spacing-xl)' }}>
+          <div style={{ 
+            maxWidth: '1200px', 
+            margin: '0 auto',
+            display: 'flex', 
+            alignItems: 'center',
+            minHeight: '80px'
+          }}>
+            <div style={{ flex: 1 }}></div>
+          </div>
+        </nav>
+        <div className="container" style={{ 
+          paddingTop: '4rem', 
+          textAlign: 'center',
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ fontSize: '1.25rem', color: 'var(--color-text-secondary)' }}>
+            {t('common.loading')}
+          </div>
+        </div>
       </div>
     );
   }

@@ -78,9 +78,28 @@ export function UserHomePage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: 'calc(100vh - 80px)' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>Loading...</div>
+      <div style={{ 
+        display: 'flex', 
+        minHeight: 'calc(100vh - 80px)',
+        position: 'relative'
+      }}>
+        {/* Sidebar skeleton */}
+        <div style={{ 
+          width: '300px',
+          borderRight: '1px solid var(--color-border)',
+          background: 'var(--color-background-secondary)'
+        }}></div>
+        {/* Main content skeleton */}
+        <div style={{ 
+          flex: 1, 
+          padding: 'var(--spacing-xl)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+            Loading...
+          </div>
         </div>
       </div>
     );
@@ -93,35 +112,39 @@ export function UserHomePage() {
         <button
           onClick={handleCollapseHistory}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             left: 0,
             top: '50%',
             transform: 'translateY(-50%)',
-            padding: '0.5rem 0.25rem',
+            padding: '1rem 0.5rem',
             background: 'var(--color-background-secondary)',
             border: '1px solid var(--color-border)',
             borderLeft: 'none',
-            borderTopRightRadius: 'var(--radius-sm)',
-            borderBottomRightRadius: 'var(--radius-sm)',
+            borderTopRightRadius: 'var(--radius-md)',
+            borderBottomRightRadius: 'var(--radius-md)',
             color: 'var(--color-text-primary)',
             cursor: 'pointer',
-            fontSize: '0.75rem',
+            fontSize: '1.5rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             transition: 'all var(--transition-base)',
-            minWidth: '24px',
-            height: '48px',
-            zIndex: 10,
-            boxShadow: '2px 0 4px rgba(0, 0, 0, 0.1)'
+            minWidth: '48px',
+            height: '80px',
+            zIndex: 1000,
+            boxShadow: '2px 0 8px rgba(0, 0, 0, 0.2)'
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--color-background-tertiary)';
             e.currentTarget.style.borderColor = 'var(--color-border-hover)';
+            e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+            e.currentTarget.style.boxShadow = '2px 0 12px rgba(0, 0, 0, 0.3)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'var(--color-background-secondary)';
             e.currentTarget.style.borderColor = 'var(--color-border)';
+            e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+            e.currentTarget.style.boxShadow = '2px 0 8px rgba(0, 0, 0, 0.2)';
           }}
           title="Expand sidebar"
         >
