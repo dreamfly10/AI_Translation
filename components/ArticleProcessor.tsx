@@ -26,6 +26,7 @@ interface ArticleProcessorProps {
 function Helptip({ tooltip }: { tooltip: string }) {
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const tooltipContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,6 +38,51 @@ function Helptip({ tooltip }: { tooltip: string }) {
     if (showTooltip) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTooltip]);
+
+  // Calculate position to keep tooltip within viewport
+  useEffect(() => {
+    if (showTooltip && tooltipRef.current && tooltipContentRef.current) {
+      const container = tooltipRef.current;
+      const tooltip = tooltipContentRef.current;
+      
+      const containerRect = container.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Check if tooltip overflows to the right
+      const overflowsRight = containerRect.right + tooltipRect.width + 8 > viewportWidth;
+      // Check if tooltip overflows to the bottom
+      const overflowsBottom = containerRect.bottom + tooltipRect.height / 2 > viewportHeight;
+      // Check if tooltip overflows to the top
+      const overflowsTop = containerRect.top - tooltipRect.height / 2 < 0;
+      
+      // Adjust position
+      if (overflowsRight) {
+        tooltip.style.left = 'auto';
+        tooltip.style.right = '100%';
+        tooltip.style.marginLeft = '0';
+        tooltip.style.marginRight = '0.5rem';
+      } else {
+        tooltip.style.left = '100%';
+        tooltip.style.right = 'auto';
+        tooltip.style.marginLeft = '0.5rem';
+        tooltip.style.marginRight = '0';
+      }
+      
+      if (overflowsBottom) {
+        tooltip.style.top = 'auto';
+        tooltip.style.bottom = '0';
+        tooltip.style.transform = 'translateY(0)';
+      } else if (overflowsTop) {
+        tooltip.style.top = '0';
+        tooltip.style.transform = 'translateY(0)';
+      } else {
+        tooltip.style.top = '50%';
+        tooltip.style.transform = 'translateY(-50%)';
+      }
     }
   }, [showTooltip]);
 
@@ -74,6 +120,7 @@ function Helptip({ tooltip }: { tooltip: string }) {
       </button>
       {showTooltip && (
         <div
+          ref={tooltipContentRef}
           style={{
             position: 'absolute',
             top: '50%',
@@ -86,13 +133,16 @@ function Helptip({ tooltip }: { tooltip: string }) {
             borderRadius: 'var(--radius-md)',
             fontSize: '0.875rem',
             color: 'var(--color-text-primary)',
-            maxWidth: 'none',
-            minWidth: 'max-content',
+            maxWidth: '300px',
+            width: 'max-content',
+            maxHeight: '80vh',
+            overflow: 'auto',
             zIndex: 1000,
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            whiteSpace: 'nowrap',
+            whiteSpace: 'pre-line',
             lineHeight: 1.4,
-            display: 'inline-block'
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word'
           }}
         >
           {tooltip}
@@ -1037,10 +1087,34 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
           display: 'flex', 
           alignItems: 'center', 
           gap: 'var(--spacing-sm)',
-          marginBottom: 'var(--spacing-md)'
+          marginBottom: 'var(--spacing-xl)'
         }}>
           <h2 style={{ margin: 0 }}>{t('processor.title')}</h2>
           <Helptip tooltip={t('processor.title.helptip')} />
+        </div>
+        
+        {/* Headline and Sub-headline */}
+        <div style={{ 
+          marginBottom: 'var(--spacing-lg)'
+        }}>
+          <h3 style={{ 
+            margin: '0 0 var(--spacing-sm) 0', 
+            color: 'var(--color-text-primary)',
+            fontSize: '1.25rem',
+            fontWeight: 600,
+            lineHeight: 1.3
+          }}>
+            {t('processor.headline')}
+          </h3>
+          <p style={{ 
+            margin: 0,
+            color: 'var(--color-text-secondary)',
+            fontSize: '1rem',
+            lineHeight: 1.5,
+            opacity: 0.9
+          }}>
+            {t('processor.subheadline')}
+          </p>
         </div>
         
         <div style={{ 
@@ -1248,12 +1322,15 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             marginBottom: 'var(--spacing-sm)'
           }}>
             <label style={{ 
-              display: 'block',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-xs)',
               flex: 1,
               fontWeight: 500,
               color: 'var(--color-text-primary)'
             }}>
               {t('processor.style.label')}
+              <Helptip tooltip={t('processor.style.helptip')} />
             </label>
             <button
               type="button"
@@ -1347,12 +1424,15 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
 
         <div style={{ marginTop: 'var(--spacing-md)' }}>
           <label style={{ 
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-xs)',
             marginBottom: 'var(--spacing-sm)',
             fontWeight: 500,
             color: 'var(--color-text-primary)'
           }}>
             {t('processor.rewritingLevel.label')}
+            <Helptip tooltip={t('processor.rewritingLevel.helptip')} />
           </label>
           <select
             value={rewritingLevel}

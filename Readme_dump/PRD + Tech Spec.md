@@ -16,10 +16,11 @@
 - ✅ **Customizable Style Visibility**: Users can enable/disable default thinking styles in preferences
 - ✅ **User Preferences**: Customizable defaults for thinking style, expression variation, target language, UI language, and enabled thinking styles visibility
 - ✅ **Payment System**: Stripe integration with subscription management, payment history, and billing portal
-- ✅ **Article History**: Paginated article history with soft delete functionality
+- ✅ **Article History**: Infinite scroll lazy loading with soft delete functionality
 - ✅ **Auto Sign-Out**: Automatic session timeout after inactivity
 - ✅ **Subscription Detection**: Intelligent detection of paywalled content with guided workflow
-- ✅ **Error Handling**: Comprehensive error handling with user-friendly messages
+- ✅ **Error Handling**: Comprehensive error handling with user-friendly messages, timeout handling, retry logic, and URL validation
+- ✅ **Password Reset**: OTP-based password reset flow with email verification
 - ✅ **Modern UI**: Responsive design with language toggle, dark/light theme support
 
 ## Overview
@@ -82,6 +83,12 @@ Expression Copilot allows users to input article URLs or raw text, automatically
 
 ### 5. User Management
 - **Authentication**: Email/Password with optional Google OAuth
+- **Password Reset**: OTP-based password reset flow
+  - User requests reset code via email
+  - 6-digit OTP sent to email (expires in 10 minutes)
+  - Rate limiting (max 3 requests per hour)
+  - OTP verification with attempt limiting (max 5 attempts)
+  - Secure password reset with token validation
 - **Trial Users**: 5,000 tokens with strict enforcement
 - **Paid Users**: 1,000,000 tokens/month with subscription management
 - **Auto Sign-Out**: Configurable inactivity timeout
@@ -95,10 +102,11 @@ Expression Copilot allows users to input article URLs or raw text, automatically
 - **Subscription Cancellation**: One-click cancellation with confirmation
 
 ### 7. Article Management
-- **Article History**: Paginated list (10 articles per page)
+- **Article History**: Infinite scroll lazy loading (10 articles per page, loads more on scroll)
 - **Soft Delete**: UI-only deletion preserving database records
 - **Article Loading**: Load and re-process saved articles
 - **Metadata Storage**: Title, source URL, style, target language, tokens used
+- **Performance**: Lazy loading improves performance for users with many articles
 
 ### 8. Progressive Rendering & Real-Time Updates
 - **Server-Sent Events (SSE)**: Real-time streaming of processing updates
@@ -218,12 +226,23 @@ Result Rendering with Progressive Updates
 7. User can manage payment methods via Billing Portal
 8. User can cancel subscription (status changes to cancelled)
 
+### Token Purchase Flow
+1. User clicks "Buy More Tokens" in Settings → Subscription
+2. User selects token package (10k or 50k tokens)
+3. System creates Stripe Checkout Session with `purchaseType: 'tokens'` metadata
+4. User completes payment on Stripe
+5. Stripe webhook (`checkout.session.completed`) detects token purchase
+6. System adds purchased tokens to user's existing token limit
+7. Token limit increases (works for both trial and paid users)
+
 ### Article History Flow
-1. User views paginated article list (10 per page)
-2. User can click article to load and re-process
-3. User can delete article (soft delete - UI only)
-4. Pagination updates automatically after deletion
-5. Empty pages redirect to previous page
+1. User views article list with infinite scroll (loads 10 articles initially)
+2. As user scrolls near bottom (200px threshold), next page loads automatically
+3. Articles accumulate as user scrolls (no page replacement)
+4. User can click article to load and re-process
+5. User can delete article (soft delete - UI only)
+6. Loading indicators show when fetching more articles
+7. "No more articles" message appears when all articles loaded
 
 ## Database Schema
 
@@ -246,6 +265,12 @@ Result Rendering with Progressive Updates
 - show_language_toggle (BOOLEAN, DEFAULT true)
 - default_ui_language (TEXT, DEFAULT 'en') -- 'en' | 'zh'
 - enabled_thinking_styles (JSONB) -- Array of enabled default thinking style keys, defaults to all 8 styles
+- reset_token (TEXT, nullable) -- Password reset token
+- reset_token_expires_at (TIMESTAMPTZ, nullable) -- Reset token expiration
+- otp_code (TEXT, nullable) -- OTP for password reset
+- otp_expires_at (TIMESTAMPTZ, nullable) -- OTP expiration
+- otp_attempts (INTEGER, DEFAULT 0) -- OTP verification attempts
+- last_otp_request_at (TIMESTAMPTZ, nullable) -- Last OTP request timestamp
 - created_at (TIMESTAMPTZ)
 - updated_at (TIMESTAMPTZ)
 ```
@@ -335,7 +360,7 @@ Result Rendering with Progressive Updates
 ### Article Management
 
 #### `GET /api/articles`
-**Get paginated article history**
+**Get paginated article history (supports infinite scroll)**
 
 **Query Parameters:**
 - `limit` (optional, default: 10): Articles per page
@@ -362,6 +387,8 @@ Result Rendering with Progressive Updates
   }
 }
 ```
+
+**Usage**: Frontend uses infinite scroll - loads first page, then automatically fetches next page when user scrolls near bottom (200px threshold). Articles accumulate rather than being replaced.
 
 #### `GET /api/articles/[id]`
 **Get single article by ID**
@@ -541,6 +568,58 @@ Result Rendering with Progressive Updates
 }
 ```
 
+#### `POST /api/buy-tokens`
+**Create Stripe Checkout session for one-time token purchase**
+
+**Request Body:**
+```json
+{
+  "amount": "10k" | "50k"
+}
+```
+
+**Response:**
+```json
+{
+  "url": "https://checkout.stripe.com/..."
+}
+```
+
+**Features:**
+- Creates one-time payment checkout session
+- Adds purchased tokens to user's token limit
+- Works for both trial and paid users
+- Tokens are added via Stripe webhook after payment
+
+#### `GET /api/buy-tokens/prices`
+**Get token package prices**
+
+**Response:**
+```json
+{
+  "price10k": "$X.XX",
+  "price50k": "$X.XX"
+}
+```
+
+#### `POST /api/webhooks/stripe`
+**Stripe webhook handler for payment events**
+
+**Events Handled:**
+- `checkout.session.completed`: Handles subscription upgrades and token purchases
+  - Checks `purchaseType` metadata to differentiate between subscriptions and token purchases
+  - For token purchases: Calls `addTokensToUser()` to add tokens to user's limit
+  - For subscriptions: Calls `upgradeUserToPaid()` to upgrade user
+- `customer.subscription.updated`: Updates subscription status and expiration
+- `customer.subscription.deleted`: Marks subscription as cancelled
+- `invoice.payment_succeeded`: Handles successful subscription payments
+
+**Features:**
+- Signature verification for security
+- Token purchase support (adds tokens to existing limit)
+- Subscription management (upgrade, update, cancel)
+- Works for both trial and paid users
+
 ### Token Management
 
 #### `GET /api/token-usage`
@@ -605,6 +684,82 @@ Result Rendering with Progressive Updates
 }
 ```
 
+#### `POST /api/auth/forgot-password`
+**Request password reset OTP**
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Reset code sent to your email"
+}
+```
+
+**Features:**
+- Generates 6-digit OTP
+- Sends OTP via email (Resend API)
+- Rate limiting (max 3 requests per hour)
+- OTP expires in 10 minutes
+- Stores OTP in database with expiration timestamp
+
+#### `POST /api/auth/verify-otp`
+**Verify OTP and get reset token**
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "resetToken": "secure-reset-token"
+}
+```
+
+**Features:**
+- Validates OTP code
+- Checks expiration (10 minutes)
+- Limits attempts (max 5 attempts per OTP)
+- Generates secure reset token
+- Returns token for password reset
+
+#### `POST /api/auth/reset-password`
+**Reset password with token**
+
+**Request Body:**
+```json
+{
+  "resetToken": "secure-reset-token",
+  "newPassword": "newpassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Password reset successfully"
+}
+```
+
+**Features:**
+- Validates reset token
+- Checks token expiration
+- Updates password with bcrypt hashing
+- Clears reset tokens from database
+
 #### `GET/POST /api/auth/[...nextauth]`
 **NextAuth.js authentication handler**
 
@@ -649,10 +804,14 @@ Result Rendering with Progressive Updates
 - **Subscription Expiration**: Detects and handles during processing
 - **Voice Profile Not Found**: Falls back to default style with error message
 
-### Pagination
-- **Empty Pages**: Redirects to previous page after deletion
-- **Count Failures**: Falls back to actual query results
-- **State Management**: Proper state updates after deletions
+### Article History & Lazy Loading
+- **Infinite Scroll**: Automatically loads more articles as user scrolls
+- **Scroll Threshold**: Loads next page when 200px from bottom
+- **Performance**: Only loads what's needed, improves performance for large article lists
+- **Loading States**: Shows "Loading more articles..." indicator
+- **End Indicator**: Shows "No more articles" when all loaded
+- **Debounced Scroll**: Scroll events debounced to 100ms for performance
+- **State Management**: Proper state updates after deletions and refreshes
 
 ### Error Message Standardization
 - **User-Friendly Messages**: All errors include `userMessage` field
@@ -728,7 +887,9 @@ Result Rendering with Progressive Updates
 ### Frontend
 - **Progressive Rendering**: Content appears as it's generated
 - **Lazy Loading**: Components loaded on demand
+- **Infinite Scroll**: Article history uses lazy loading for better performance
 - **State Management**: Efficient React state updates
+- **Scroll Optimization**: Debounced scroll handlers for smooth performance
 
 ## Environment Variables
 
@@ -767,7 +928,7 @@ STRIPE_TOKEN_50K_PRICE_ID=price_... (optional)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 
-# Email (Support Form)
+# Email (Support Form & Password Reset)
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=Expression Copilot <onboarding@resend.dev>
 SUPPORT_EMAIL=your-email@example.com
@@ -793,10 +954,43 @@ SUPPORT_EMAIL=your-email@example.com
 ---
 
 **Last Updated**: January 2025
-**Version**: 1.2.0
+**Version**: 1.3.0
 **Application Name**: Expression Copilot (智能表达助理)
 
 ## Recent Updates (January 2025)
+
+### Performance Improvements
+- **Article History Lazy Loading**: Implemented infinite scroll for article history
+  - Automatically loads more articles as user scrolls (200px threshold)
+  - Debounced scroll events (100ms) for smooth performance
+  - Loading indicators and end-of-list messages
+  - Better performance for users with many articles
+  - Removed traditional pagination controls in favor of infinite scroll
+
+### URL Processing Enhancements
+- **Improved Content Extraction**: Enhanced selectors for blog sites (nyquiste.com, etc.)
+- **Timeout Handling**: 30-second timeout with AbortController
+- **Retry Logic**: Automatic retries (up to 2) with exponential backoff
+- **Better Error Messages**: Specific, actionable error messages for different failure types
+- **URL Validation**: Validates URL format before processing
+- **Enhanced Fallback**: Better extraction from `<main>` elements and improved navigation pattern removal
+- **Error Categories**: Timeout, CORS, SSL, Invalid URL, Network errors with specific guidance
+
+### Password Reset Feature
+- **OTP-Based Flow**: Secure password reset using 6-digit OTP codes
+- **Email Integration**: OTP codes sent via Resend API
+- **Rate Limiting**: Max 3 OTP requests per hour per user
+- **Security**: OTP expires in 10 minutes, max 5 verification attempts
+- **Frontend Pages**: `/auth/forgot-password`, `/auth/verify-otp`, `/auth/reset-password`
+- **Database Fields**: Added `reset_token`, `reset_token_expires_at`, `otp_code`, `otp_expires_at`, `otp_attempts`, `last_otp_request_at` to users table
+
+### Language & UI Improvements
+- **Landing Page Default**: Landing page always defaults to English (ignores localStorage for non-logged-in users)
+- **Logged-In Users**: Use saved preferences or localStorage
+- **Language Toggle**: Still works on landing page but doesn't persist on next visit
+- **FOUC Prevention**: Flash of Unstyled Content prevention with skeleton loading states
+- **Settings Modal**: Fixed-size modals across all sections with consistent navigation alignment
+- **Floating Support Button**: Larger floating support button on landing page (80px × 80px)
 
 ### Token Limits
 - Trial users: Increased from 1,000 to 5,000 tokens

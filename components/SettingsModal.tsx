@@ -500,6 +500,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         style={{
           maxWidth: '900px',
           width: '100%',
+          height: 'calc(100vh - 4rem)',
           maxHeight: 'calc(100vh - 4rem)',
           overflow: 'hidden',
           display: 'flex',
@@ -548,11 +549,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           padding: 'var(--spacing-lg)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--spacing-sm)',
+          gap: 'var(--spacing-md)',
           background: 'var(--color-background-secondary)',
           flexShrink: 0,
           overflowY: 'auto',
-          maxHeight: 'calc(100vh - 2 * var(--spacing-lg))',
+          maxHeight: 'calc(100vh - 4rem)',
           boxSizing: 'border-box',
           height: '100%'
         }}>
@@ -563,99 +564,124 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             onClick={() => setActiveSection('userInfo')}
             style={{
               padding: 'var(--spacing-sm) var(--spacing-md)',
+              paddingLeft: 'var(--spacing-md)',
               background: activeSection === 'userInfo' ? 'var(--color-primary)' : 'transparent',
               color: activeSection === 'userInfo' ? 'white' : 'var(--color-text-primary)',
-              border: 'none',
+              border: activeSection === 'userInfo' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               textAlign: 'left',
               fontSize: '0.875rem',
+              fontWeight: 600,
               transition: 'all var(--transition-base)',
               display: 'flex',
               alignItems: 'center',
-              gap: 'var(--spacing-sm)'
+              gap: 'var(--spacing-sm)',
+              height: '40px',
+              minHeight: '40px',
+              justifyContent: 'flex-start'
             }}
           >
             👤 {language === 'en' ? 'User Info' : '用户信息'}
           </button>
-                  <button
-                    onClick={() => setActiveSection('subscription')}
-                    style={{
-                      padding: 'var(--spacing-sm) var(--spacing-md)',
-                      background: activeSection === 'subscription' ? 'var(--color-primary)' : 'transparent',
-                      color: activeSection === 'subscription' ? 'white' : 'var(--color-text-primary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontSize: '0.875rem',
-                      transition: 'all var(--transition-base)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--spacing-sm)'
-                    }}
-                  >
-                    💳 {language === 'en' ? 'Subscription' : '订阅'}
-                  </button>
-                  <button
-                    onClick={() => setActiveSection('paymentHistory')}
-                    style={{
-                      padding: 'var(--spacing-sm) var(--spacing-md)',
-                      background: activeSection === 'paymentHistory' ? 'var(--color-primary)' : 'transparent',
-                      color: activeSection === 'paymentHistory' ? 'white' : 'var(--color-text-primary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontSize: '0.875rem',
-                      transition: 'all var(--transition-base)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--spacing-sm)',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    📄 {language === 'en' ? 'Payment History' : '付款历史'}
-                  </button>
-                  <button
-                    onClick={() => setActiveSection('voiceProfile')}
-                    style={{
-                      padding: 'var(--spacing-sm) var(--spacing-md)',
-                      background: activeSection === 'voiceProfile' ? 'var(--color-primary)' : 'transparent',
-                      color: activeSection === 'voiceProfile' ? 'white' : 'var(--color-text-primary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontSize: '0.875rem',
-                      transition: 'all var(--transition-base)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--spacing-sm)'
-                    }}
-                  >
-                    🎤 {language === 'en' ? 'Add Your Thinking Style' : '添加您的思维风格'}
-                  </button>
-                  <button
-                    onClick={() => setActiveSection('preferences')}
-                    style={{
-                      padding: 'var(--spacing-sm) var(--spacing-md)',
-                      background: activeSection === 'preferences' ? 'var(--color-primary)' : 'transparent',
-                      color: activeSection === 'preferences' ? 'white' : 'var(--color-text-primary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontSize: '0.875rem',
-                      transition: 'all var(--transition-base)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--spacing-sm)'
-                    }}
-                  >
-                    ⚙️ {language === 'en' ? 'Preferences' : '偏好设置'}
-                  </button>
-                </div>
+          <button
+            onClick={() => setActiveSection('subscription')}
+            style={{
+              padding: 'var(--spacing-sm) var(--spacing-md)',
+              paddingLeft: 'var(--spacing-md)',
+              background: activeSection === 'subscription' ? 'var(--color-primary)' : 'transparent',
+              color: activeSection === 'subscription' ? 'white' : 'var(--color-text-primary)',
+              border: activeSection === 'subscription' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              transition: 'all var(--transition-base)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm)',
+              height: '40px',
+              minHeight: '40px',
+              justifyContent: 'flex-start'
+            }}
+          >
+            💳 {language === 'en' ? 'Subscription' : '订阅'}
+          </button>
+          <button
+            onClick={() => setActiveSection('paymentHistory')}
+            style={{
+              padding: 'var(--spacing-sm) var(--spacing-md)',
+              paddingLeft: 'var(--spacing-md)',
+              background: activeSection === 'paymentHistory' ? 'var(--color-primary)' : 'transparent',
+              color: activeSection === 'paymentHistory' ? 'white' : 'var(--color-text-primary)',
+              border: activeSection === 'paymentHistory' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              transition: 'all var(--transition-base)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm)',
+              whiteSpace: 'nowrap',
+              height: '40px',
+              minHeight: '40px',
+              justifyContent: 'flex-start'
+            }}
+          >
+            📄 {language === 'en' ? 'Payment History' : '付款历史'}
+          </button>
+          <button
+            onClick={() => setActiveSection('voiceProfile')}
+            style={{
+              padding: 'var(--spacing-sm) var(--spacing-md)',
+              paddingLeft: 'var(--spacing-md)',
+              background: activeSection === 'voiceProfile' ? 'var(--color-primary)' : 'transparent',
+              color: activeSection === 'voiceProfile' ? 'white' : 'var(--color-text-primary)',
+              border: activeSection === 'voiceProfile' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              transition: 'all var(--transition-base)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm)',
+              height: '40px',
+              minHeight: '40px',
+              justifyContent: 'flex-start'
+            }}
+          >
+            🎤 {language === 'en' ? 'Add Your Thinking Style' : '添加您的思维风格'}
+          </button>
+          <button
+            onClick={() => setActiveSection('preferences')}
+            style={{
+              padding: 'var(--spacing-sm) var(--spacing-md)',
+              paddingLeft: 'var(--spacing-md)',
+              background: activeSection === 'preferences' ? 'var(--color-primary)' : 'transparent',
+              color: activeSection === 'preferences' ? 'white' : 'var(--color-text-primary)',
+              border: activeSection === 'preferences' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              transition: 'all var(--transition-base)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm)',
+              height: '40px',
+              minHeight: '40px',
+              justifyContent: 'flex-start'
+            }}
+          >
+            ⚙️ {language === 'en' ? 'Preferences' : '偏好设置'}
+          </button>
+        </div>
 
         {/* Right Content */}
         <div style={{
@@ -664,11 +690,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           overflowY: 'auto',
           overflowX: 'hidden',
           minWidth: 0,
-          maxHeight: 'calc(100vh - 2 * var(--spacing-lg))',
-          boxSizing: 'border-box'
+          height: 'calc(100vh - 4rem)',
+          maxHeight: 'calc(100vh - 4rem)',
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column'
         }}>
           {activeSection === 'userInfo' && (
-            <div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <h2 style={{ margin: '0 0 var(--spacing-lg) 0' }}>
                 {language === 'en' ? 'User Info' : '用户信息'}
               </h2>
@@ -828,7 +857,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           )}
 
           {activeSection === 'subscription' && (
-            <div style={{ minHeight: '400px' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <h2 style={{ margin: '0 0 var(--spacing-lg) 0' }}>
                 {language === 'en' ? 'Subscription' : '订阅'}
               </h2>
@@ -1092,7 +1121,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           )}
 
           {activeSection === 'paymentHistory' && (
-            <div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <h2 style={{ margin: '0 0 var(--spacing-lg) 0' }}>
                 {language === 'en' ? 'Payment History' : '付款历史'}
               </h2>
@@ -1237,7 +1266,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           )}
 
           {activeSection === 'voiceProfile' && (
-            <div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <h2 style={{ margin: '0 0 var(--spacing-lg) 0' }}>
                 {language === 'en' ? 'Add Your Thinking Style' : '添加您的思维风格'}
               </h2>
@@ -1456,7 +1485,7 @@ Expression Copilot 然后将其用作生成见解和解释时的参考风格 —
           )}
 
           {activeSection === 'preferences' && (
-            <div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <h2 style={{ margin: '0 0 var(--spacing-lg) 0' }}>
                 {language === 'en' ? 'Preferences' : '偏好设置'}
               </h2>

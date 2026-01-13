@@ -97,11 +97,13 @@ export async function POST(request: Request) {
         const knownSubscriptionSites = ['wsj.com', 'nytimes.com', 'ft.com', 'economist.com', 'bloomberg.com'];
         const isKnownSite = knownSubscriptionSites.some(site => content.includes(site));
         
-        if (isKnownSite || errorMessage.includes('fetch failed')) {
+        // Handle subscription-required sites
+        if (isKnownSite || errorMessage.includes('subscription') || errorMessage.includes('paywall')) {
           return NextResponse.json(
             {
               error: 'SUBSCRIPTION_REQUIRED',
               message: 'This article requires a subscription to access. Please sign in to the website and copy the article content.',
+              userMessage: 'This article requires a subscription. Please log in to the website, copy the article text, and paste it in the "Raw Text" tab.',
               requiresSubscription: true,
               url: content,
             },
@@ -109,8 +111,69 @@ export async function POST(request: Request) {
           );
         }
         
-        // Re-throw if it's not a subscription issue
-        throw error;
+        // Handle timeout errors
+        if (errorMessage.includes('timeout') || errorMessage.includes('Request timeout')) {
+          return NextResponse.json(
+            {
+              error: 'TIMEOUT',
+              message: 'Request timed out while fetching the URL',
+              userMessage: 'The website took too long to respond. This often happens with JavaScript-heavy sites. Please copy the article content and use the "Raw Text" tab instead.',
+              url: content,
+            },
+            { status: 408 }
+          );
+        }
+        
+        // Handle network/CORS errors
+        if (errorMessage.includes('CORS') || errorMessage.includes('Cross-Origin') || 
+            errorMessage.includes('network') || errorMessage.includes('fetch failed')) {
+          return NextResponse.json(
+            {
+              error: 'NETWORK_ERROR',
+              message: 'Network error or CORS restriction',
+              userMessage: 'Unable to fetch content from this URL. The website may block automated requests or use JavaScript to load content. Please copy the article text and use the "Raw Text" tab.',
+              url: content,
+            },
+            { status: 403 }
+          );
+        }
+        
+        // Handle invalid URL errors
+        if (errorMessage.includes('Invalid URL')) {
+          return NextResponse.json(
+            {
+              error: 'INVALID_URL',
+              message: 'Invalid URL format',
+              userMessage: 'The URL format is invalid. Please ensure it starts with http:// or https:// and is a complete, valid URL.',
+              url: content,
+            },
+            { status: 400 }
+          );
+        }
+        
+        // Handle SSL/certificate errors
+        if (errorMessage.includes('SSL') || errorMessage.includes('certificate') || errorMessage.includes('TLS')) {
+          return NextResponse.json(
+            {
+              error: 'SSL_ERROR',
+              message: 'SSL/Certificate error',
+              userMessage: 'The website has certificate issues. Please verify the URL is correct, or copy the article content and use the "Raw Text" tab.',
+              url: content,
+            },
+            { status: 526 }
+          );
+        }
+        
+        // Generic extraction error with helpful message
+        return NextResponse.json(
+          {
+            error: 'EXTRACTION_ERROR',
+            message: errorMessage,
+            userMessage: `Failed to extract content: ${errorMessage}. If this site uses JavaScript to load content dynamically, please copy the article text and use the "Raw Text" tab instead.`,
+            url: content,
+          },
+          { status: 500 }
+        );
       }
     } else {
       articleText = content;
@@ -118,11 +181,16 @@ export async function POST(request: Request) {
     
     // Check if content is empty
     if (!articleText || articleText.trim().length < 50) {
+      const isEmptyFromUrl = inputType === 'url';
       return NextResponse.json(
         {
           error: 'EMPTY_CONTENT',
           message: 'No content found in the article',
-          requiresSubscription: inputType === 'url' ? requiresSubscription : false,
+          userMessage: isEmptyFromUrl 
+            ? 'No readable content was found on this page. This may happen if the site uses JavaScript to load content, requires login, or has a paywall. Please copy the article text manually and use the "Raw Text" tab.'
+            : 'The provided text is too short. Please provide at least 50 characters of content.',
+          requiresSubscription: isEmptyFromUrl ? requiresSubscription : false,
+          url: isEmptyFromUrl ? content : undefined,
         },
         { status: 400 }
       );

@@ -23,9 +23,12 @@ export const ErrorCodes = {
   
   // Content errors
   CONTENT_EXTRACTION_FAILED: 'CONTENT_EXTRACTION_FAILED',
+  EXTRACTION_ERROR: 'EXTRACTION_ERROR',
   SUBSCRIPTION_REQUIRED: 'SUBSCRIPTION_REQUIRED',
   INVALID_URL: 'INVALID_URL',
   EMPTY_CONTENT: 'EMPTY_CONTENT',
+  TIMEOUT: 'TIMEOUT',
+  SSL_ERROR: 'SSL_ERROR',
   
   // API errors
   OPENAI_ERROR: 'OPENAI_ERROR',
@@ -96,6 +99,27 @@ const ErrorMessages: Record<string, AppError> = {
     actionable: 'Please check the URL or try pasting the text directly',
     statusCode: 400,
   },
+  [ErrorCodes.EXTRACTION_ERROR]: {
+    code: ErrorCodes.EXTRACTION_ERROR,
+    message: 'Content extraction failed',
+    userMessage: 'Failed to extract content from the URL. If this site uses JavaScript to load content, please copy the article text and use the "Raw Text" tab.',
+    actionable: 'Try copying the article text and using the "Raw Text" tab instead',
+    statusCode: 500,
+  },
+  [ErrorCodes.TIMEOUT]: {
+    code: ErrorCodes.TIMEOUT,
+    message: 'Request timeout',
+    userMessage: 'The request took too long. This often happens with JavaScript-heavy sites. Please copy the article content and use the "Raw Text" tab.',
+    actionable: 'Try using the "Raw Text" tab with copied content',
+    statusCode: 408,
+  },
+  [ErrorCodes.SSL_ERROR]: {
+    code: ErrorCodes.SSL_ERROR,
+    message: 'SSL/Certificate error',
+    userMessage: 'The website has certificate issues. Please verify the URL or copy the article content and use the "Raw Text" tab.',
+    actionable: 'Verify the URL or use the "Raw Text" tab',
+    statusCode: 526,
+  },
   [ErrorCodes.OPENAI_ERROR]: {
     code: ErrorCodes.OPENAI_ERROR,
     message: 'AI processing error',
@@ -148,21 +172,40 @@ export function sanitizeError(error: any, context?: string): AppError {
     });
   }
 
-  // If it's already a sanitized AppError, return it
+  // If it's already a sanitized AppError, return it (prefer userMessage from API)
   if (error?.code && ErrorMessages[error.code]) {
     return {
       ...ErrorMessages[error.code],
       userMessage: error.userMessage || ErrorMessages[error.code].userMessage,
+      actionable: error.actionable || ErrorMessages[error.code].actionable,
     };
   }
+  
+  // If API returned userMessage directly, use it
+  if (error?.userMessage && error?.error) {
+    const errorCode = Object.keys(ErrorCodes).find(
+      (key) => ErrorCodes[key as keyof typeof ErrorCodes] === error.error
+    );
+    if (errorCode && ErrorMessages[errorCode]) {
+      return {
+        ...ErrorMessages[errorCode],
+        userMessage: error.userMessage, // Use API's userMessage
+        actionable: error.actionable || ErrorMessages[errorCode].actionable,
+      };
+    }
+  }
 
-  // If it's an API error response
+  // If it's an API error response with error code
   if (error?.error && typeof error.error === 'string') {
     const errorCode = Object.keys(ErrorCodes).find(
       (key) => ErrorCodes[key as keyof typeof ErrorCodes] === error.error
     );
     if (errorCode) {
-      return ErrorMessages[errorCode];
+      return {
+        ...ErrorMessages[errorCode],
+        userMessage: error.userMessage || ErrorMessages[errorCode].userMessage,
+        actionable: error.actionable || ErrorMessages[errorCode].actionable,
+      };
     }
   }
 

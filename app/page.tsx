@@ -462,8 +462,8 @@ function HomeContent() {
             position: 'fixed',
             bottom: 'var(--spacing-xl)',
             right: 'var(--spacing-xl)',
-            width: '60px',
-            height: '60px',
+            width: '80px',
+            height: '80px',
             borderRadius: '50%',
             background: '#000000',
             border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -488,8 +488,8 @@ function HomeContent() {
         >
           {/* Chat/Speech Bubble Icon */}
           <svg
-            width="28"
-            height="28"
+            width="40"
+            height="40"
             viewBox="0 0 28 28"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"

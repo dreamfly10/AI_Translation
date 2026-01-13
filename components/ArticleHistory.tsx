@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { styleArchetypes, StyleArchetype } from '@/lib/prompt-styles';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -32,15 +32,24 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
   const { t, language } = useLanguage();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalArticles, setTotalArticles] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const fetchArticles = async (page: number = 1) => {
+  const fetchArticles = async (page: number = 1, append: boolean = false) => {
     try {
-      console.log('[ARTICLE HISTORY] Fetching articles, page:', page, 'refreshTrigger:', refreshTrigger);
-      setLoading(true);
+      console.log('[ARTICLE HISTORY] Fetching articles, page:', page, 'append:', append, 'refreshTrigger:', refreshTrigger);
+      
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      
       setError(null);
       const response = await fetch(`/api/articles?limit=10&page=${page}`);
       const data = await response.json();
@@ -60,40 +69,55 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
       // Check for specific error types
       if (data.error === 'DATABASE_UNAVAILABLE') {
         setError('DATABASE_UNAVAILABLE');
-        setArticles([]);
+        if (!append) {
+          setArticles([]);
+        }
         return;
       }
       
       if (data.error === 'DATABASE_NOT_SETUP') {
         // Table doesn't exist - show empty state (user needs to run migration)
         setError(null);
-        setArticles([]);
+        if (!append) {
+          setArticles([]);
+        }
         return;
       }
       
       if (!response.ok && data.error) {
         // Other errors
         setError(data.error === 'DATABASE_UNAVAILABLE' ? 'DATABASE_UNAVAILABLE' : 'FETCH_ERROR');
-        setArticles([]);
+        if (!append) {
+          setArticles([]);
+        }
         return;
       }
       
-      // Success - set articles and pagination info
-      setArticles(data.articles || []);
+      // Success - append or replace articles
+      if (append) {
+        setArticles(prev => [...prev, ...(data.articles || [])]);
+      } else {
+        setArticles(data.articles || []);
+      }
+      
       setError(null);
       if (data.pagination) {
         setCurrentPage(data.pagination.page || 1);
         setTotalPages(data.pagination.totalPages || 1);
         setTotalArticles(data.pagination.totalArticles || 0);
+        setHasMore(page < data.pagination.totalPages);
       }
-      console.log('[ARTICLE HISTORY] Articles set:', data.articles?.length || 0, 'articles');
+      console.log('[ARTICLE HISTORY] Articles set:', append ? 'appended' : 'replaced', data.articles?.length || 0, 'articles');
     } catch (err) {
       // Network or other errors
       console.error('[ARTICLE HISTORY] Error fetching articles:', err);
       setError('DATABASE_UNAVAILABLE');
-      setArticles([]);
+      if (!append) {
+        setArticles([]);
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -101,12 +125,48 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
     // Reset to page 1 when refreshTrigger changes
     if (refreshTrigger !== undefined) {
       setCurrentPage(1);
+      setArticles([]);
+      setHasMore(true);
     }
   }, [refreshTrigger]);
 
   useEffect(() => {
-    fetchArticles(currentPage);
-  }, [currentPage, refreshTrigger]);
+    // Fetch first page on mount or when refreshTrigger changes
+    if (currentPage === 1 && articles.length === 0) {
+      fetchArticles(1, false);
+    }
+  }, [refreshTrigger]);
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || !hasMore || loadingMore || loading) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      // Load more when user is 200px from bottom
+      if (scrollHeight - scrollTop - clientHeight < 200) {
+        const nextPage = currentPage + 1;
+        if (nextPage <= totalPages && hasMore) {
+          setCurrentPage(nextPage);
+          fetchArticles(nextPage, true); // Append mode
+        }
+      }
+    };
+
+    // Debounce scroll events
+    let scrollTimeout: NodeJS.Timeout;
+    const debouncedHandleScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 100);
+    };
+
+    scrollContainer.addEventListener('scroll', debouncedHandleScroll);
+    return () => {
+      scrollContainer.removeEventListener('scroll', debouncedHandleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, [currentPage, totalPages, hasMore, loadingMore, loading]);
 
   const handleDelete = async (articleId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -216,11 +276,14 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
         )}
       </div>
 
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: 'var(--spacing-sm)',
-      }}>
+      <div 
+        ref={scrollContainerRef}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: 'var(--spacing-sm)',
+        }}
+      >
         {loading ? (
           <div style={{
             padding: 'var(--spacing-lg)',
@@ -396,99 +459,50 @@ export function ArticleHistory({ onSelectArticle, selectedArticleId, refreshTrig
                 </div>
               </div>
             ))}
+            
+            {/* Loading more indicator */}
+            {loadingMore && (
+              <div style={{
+                padding: 'var(--spacing-md)',
+                textAlign: 'center',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.875rem'
+              }}>
+                {language === 'en' ? 'Loading more articles...' : '加载更多文章中...'}
+              </div>
+            )}
+            
+            {/* End of list indicator */}
+            {!hasMore && articles.length > 0 && (
+              <div style={{
+                padding: 'var(--spacing-md)',
+                textAlign: 'center',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.75rem'
+              }}>
+                {language === 'en' ? 'No more articles' : '没有更多文章'}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Pagination Controls */}
+      {/* Article count footer */}
       {!loading && error !== 'DATABASE_UNAVAILABLE' && totalArticles > 0 && (
         <div style={{
-          padding: 'var(--spacing-md)',
+          padding: 'var(--spacing-sm) var(--spacing-md)',
           borderTop: '1px solid var(--color-border)',
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           alignItems: 'center',
-          gap: 'var(--spacing-sm)',
-          flexWrap: 'wrap'
         }}>
           <div style={{
             fontSize: '0.75rem',
             color: 'var(--color-text-secondary)'
           }}>
             {language === 'en' 
-              ? `Page ${currentPage} of ${totalPages} (${totalArticles} total)`
-              : `第 ${currentPage} 页，共 ${totalPages} 页（共 ${totalArticles} 篇）`}
-          </div>
-          <div style={{
-            display: 'flex',
-            gap: 'var(--spacing-xs)',
-            alignItems: 'center'
-          }}>
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              style={{
-                padding: '0.25rem 0.5rem',
-                background: currentPage === 1 ? 'transparent' : 'var(--color-background-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                color: currentPage === 1 ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                fontSize: '0.75rem',
-                transition: 'all var(--transition-base)',
-                opacity: currentPage === 1 ? 0.5 : 1
-              }}
-            >
-              ◀
-            </button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum: number;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  style={{
-                    padding: '0.25rem 0.5rem',
-                    minWidth: '28px',
-                    background: currentPage === pageNum ? 'var(--color-primary)' : 'transparent',
-                    border: `1px solid ${currentPage === pageNum ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                    borderRadius: 'var(--radius-sm)',
-                    color: currentPage === pageNum ? 'white' : 'var(--color-text-primary)',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    transition: 'all var(--transition-base)'
-                  }}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              style={{
-                padding: '0.25rem 0.5rem',
-                background: currentPage === totalPages ? 'transparent' : 'var(--color-background-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                color: currentPage === totalPages ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
-                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                fontSize: '0.75rem',
-                transition: 'all var(--transition-base)',
-                opacity: currentPage === totalPages ? 0.5 : 1
-              }}
-            >
-              ▶
-            </button>
+              ? `${totalArticles} ${totalArticles === 1 ? t('userhome.article') : t('userhome.articles')}`
+              : `${totalArticles}${t('userhome.article.zh')}`}
           </div>
         </div>
       )}

@@ -40,6 +40,12 @@
 - `default_target_language` (TEXT, DEFAULT 'zh') - CHECK constraint: 'zh' | 'en' | 'es' | 'fr' | 'de' | 'ja' | 'ko' | 'pt' | 'it' | 'ru' | 'ar'
 - `show_language_toggle` (BOOLEAN, DEFAULT true)
 - `default_ui_language` (TEXT, DEFAULT 'en') - CHECK constraint: 'en' | 'zh'
+- `reset_token` (TEXT, nullable) - Password reset token
+- `reset_token_expires_at` (TIMESTAMPTZ, nullable) - Reset token expiration
+- `otp_code` (TEXT, nullable) - OTP for password reset
+- `otp_expires_at` (TIMESTAMPTZ, nullable) - OTP expiration
+- `otp_attempts` (INTEGER, DEFAULT 0) - OTP verification attempts
+- `last_otp_request_at` (TIMESTAMPTZ, nullable) - Last OTP request timestamp
 - `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
 - `updated_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
 
@@ -148,6 +154,40 @@
 - **Creates**: New user in `users` table with `userType: 'trial'`, `tokenLimit: 5000`
 - **Returns**: User object or error
 
+#### `POST /api/auth/forgot-password`
+- **File**: `app/api/auth/forgot-password/route.ts`
+- **Dependencies**: `lib/db.ts`, Resend API
+- **Request Body**: `{ email: string }`
+- **Features**:
+  - Generates 6-digit OTP
+  - Sends OTP via email (Resend API)
+  - Rate limiting (max 3 requests per hour)
+  - OTP expires in 10 minutes
+  - Stores OTP in database with expiration
+- **Returns**: Success message
+
+#### `POST /api/auth/verify-otp`
+- **File**: `app/api/auth/verify-otp/route.ts`
+- **Dependencies**: `lib/db.ts`
+- **Request Body**: `{ email: string, otp: string }`
+- **Features**:
+  - Validates OTP code
+  - Checks expiration (10 minutes)
+  - Limits attempts (max 5 attempts per OTP)
+  - Generates secure reset token
+- **Returns**: Reset token for password reset
+
+#### `POST /api/auth/reset-password`
+- **File**: `app/api/auth/reset-password/route.ts`
+- **Dependencies**: `lib/db.ts`, `bcryptjs`
+- **Request Body**: `{ resetToken: string, newPassword: string }`
+- **Features**:
+  - Validates reset token
+  - Checks token expiration
+  - Updates password with bcrypt hashing
+  - Clears reset tokens from database
+- **Returns**: Success message
+
 #### `GET/POST /api/auth/[...nextauth]`
 - **File**: `app/api/auth/[...nextauth]/route.ts`
 - **Dependencies**: `lib/auth.ts` (authOptions)
@@ -161,9 +201,10 @@
 - **Dependencies**: `lib/auth.ts`, `lib/supabase.ts`
 - **Query Params**: `?limit=10&page=1` (optional)
 - **Returns**: `{ articles: Article[], pagination: { page, limit, totalArticles, totalPages } }`
-- **Used By**: `components/ArticleHistory.tsx`
+- **Used By**: `components/ArticleHistory.tsx` (infinite scroll lazy loading)
 - **Database**: Queries `articles` table filtered by `user_id` with pagination
 - **Error Handling**: Handles connection errors, missing tables, count failures
+- **Usage Pattern**: Frontend uses infinite scroll - loads first page, then automatically fetches next page when user scrolls near bottom
 
 #### `GET /api/articles/[id]`
 - **File**: `app/api/articles/[id]/route.ts`
@@ -242,11 +283,26 @@
 - **File**: `app/api/buy-tokens/route.ts`
 - **Dependencies**: `lib/auth.ts`, `lib/stripe.ts`
 - **Request Body**: `{ amount: '10k' | '50k' }`
-- **Returns**: Stripe Checkout session for one-time token purchase
+- **Features**:
+  - Creates Stripe Checkout session with `purchaseType: 'tokens'` metadata
+  - Includes `tokenAmount` in metadata for webhook processing
+- **Returns**: Stripe Checkout session URL for one-time token purchase
 
 #### `GET /api/buy-tokens/prices`
 - **File**: `app/api/buy-tokens/prices/route.ts`
-- **Returns**: Token package prices
+- **Returns**: Token package prices from Stripe
+
+#### `POST /api/webhooks/stripe`
+- **File**: `app/api/webhooks/stripe/route.ts`
+- **Dependencies**: `lib/stripe.ts`, `lib/upgrade-user.ts`, `lib/db.ts`
+- **Features**:
+  - Handles `checkout.session.completed` events
+  - Differentiates between subscriptions and token purchases via `purchaseType` metadata
+  - For token purchases: Calls `addTokensToUser()` to add tokens to user's existing limit
+  - For subscriptions: Calls `upgradeUserToPaid()` to upgrade user
+  - Handles `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`
+  - Signature verification for security
+- **Used By**: Stripe webhook events (automatic)
 
 ### Voice Profile Routes (Author Profiles)
 
@@ -467,9 +523,13 @@
   - `/api/articles` (GET with pagination)
 - **Props**: `onSelectArticle`, `selectedArticleId`, `refreshTrigger`, `onCollapse`
 - **Features**:
-  - Pagination (10 articles per page)
+  - Infinite scroll lazy loading (10 articles per page, loads more on scroll)
+  - Automatic loading when user scrolls within 200px of bottom
+  - Debounced scroll events (100ms) for performance
+  - Loading indicators ("Loading more articles...")
+  - End-of-list indicator ("No more articles")
   - Soft delete (UI-only, database unchanged)
-  - Handles empty pages after deletion
+  - Articles accumulate as user scrolls (no page replacement)
   - Error states (DATABASE_UNAVAILABLE, DATABASE_NOT_SETUP)
 
 #### `components/ArticleProcessor.tsx`
@@ -682,10 +742,24 @@
 - **Exports**: `extractContentFromUrl(url: string, onProgress?: (message: string) => void)`
 - **Dependencies**: `cheerio`, `lib/youtube-transcript.ts`
 - **Features**: 
+  - URL validation (validates format before processing)
+  - Timeout handling (30-second timeout with AbortController)
+  - Retry logic (up to 2 retries with exponential backoff)
+  - Enhanced content selectors for blog sites (nyquiste.com, etc.)
+  - Improved fallback extraction from `<main>` elements
+  - Better navigation pattern removal
   - Subscription detection for paywalled content
   - HTML content extraction using Cheerio
   - YouTube video support with automatic transcript extraction
   - Progress callbacks for YouTube processing
+  - User-friendly error messages with specific guidance
+  - HTTP status code handling (403, 404, 429, 500+)
+- **Error Handling**:
+  - Timeout errors with actionable suggestions
+  - CORS/Network errors with guidance
+  - SSL/Certificate errors
+  - Invalid URL format errors
+  - Empty content detection
 - **Used By**: `app/api/process-article-stream/route.ts`
 
 #### `lib/prompt-styles.ts`
@@ -809,7 +883,7 @@ GOOGLE_CLIENT_SECRET=...
 STRIPE_TOKEN_10K_PRICE_ID=price_...
 STRIPE_TOKEN_50K_PRICE_ID=price_...
 
-# Email (for support form)
+# Email (for support form and password reset)
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=Expression Copilot <onboarding@resend.dev>
 SUPPORT_EMAIL=your-email@example.com
@@ -837,9 +911,10 @@ SUPPORT_EMAIL=your-email@example.com
 - **Features**: Checkout Sessions, Billing Portal, Webhooks, Invoices, Customer management
 
 ### Resend
-- **Purpose**: Support email sending
-- **Configuration**: `app/api/support/route.ts`
-- **Used By**: Support form
+- **Purpose**: Support email sending and password reset OTP emails
+- **Configuration**: `app/api/support/route.ts`, `app/api/auth/forgot-password/route.ts`
+- **Used By**: Support form, password reset flow
+- **Features**: Sends OTP codes for password reset via email
 
 ### NextAuth.js
 - **Purpose**: Authentication
@@ -940,6 +1015,7 @@ components/SettingsModal.tsx
 
 ### Input Validation
 - **URL Format**: Validates URL structure, requires http/https protocol
+- **URL Validation**: `isValidUrl()` function validates format before processing
 - **Text Length**: Minimum 50 characters for text input
 - **URL in Text**: Detects URLs pasted in Raw Text field, shows format error
 - **Empty Content**: Prevents processing of empty inputs
@@ -949,6 +1025,19 @@ components/SettingsModal.tsx
   - No length restrictions (depends on caption availability)
 - **Zod Validation**: All API inputs validated with Zod schemas
 - **Empty String Handling**: Transforms empty strings to null for optional fields
+
+### URL Processing & Content Extraction
+- **Timeout Handling**: 30-second timeout with AbortController to prevent hanging requests
+- **Retry Logic**: Automatic retries (up to 2) with exponential backoff (1s, 2s, 4s, max 10s)
+- **Enhanced Selectors**: Blog-specific selectors for sites like nyquiste.com
+- **Improved Fallback**: Better extraction from `<main>` elements and enhanced navigation pattern removal
+- **Error Messages**: Specific, actionable error messages for:
+  - Timeout errors (suggests using "Raw Text" tab)
+  - CORS/Network errors (explains JavaScript-heavy sites)
+  - SSL/Certificate errors
+  - Invalid URL format
+  - HTTP status codes (403, 404, 429, 500+)
+- **Progress Callbacks**: Real-time progress updates during extraction
 
 ### Token Management
 - **Pre-Validation**: Estimates tokens before processing
@@ -986,11 +1075,14 @@ components/SettingsModal.tsx
 - **Markdown Removal**: Post-processing to remove all markdown formatting
 - **Progress Tracking**: Real-time progress updates via SSE
 
-### Pagination
-- **Empty Pages**: Redirects to previous page after deletion
-- **Count Failures**: Falls back to actual query results
-- **State Management**: Proper state updates after deletions
-- **Edge Cases**: Handles deletion of last item on page
+### Article History & Lazy Loading
+- **Infinite Scroll**: Automatically loads more articles as user scrolls (200px threshold)
+- **Debounced Scroll**: Scroll events debounced to 100ms for performance
+- **Loading States**: Shows "Loading more articles..." indicator
+- **End Indicator**: Shows "No more articles" when all articles loaded
+- **State Management**: Proper state updates after deletions and refreshes
+- **Performance**: Only loads what's needed, improves performance for large article lists
+- **Article Accumulation**: Articles accumulate as user scrolls (no page replacement)
 
 ### Error Message Standardization
 - **User-Friendly Messages**: All errors include `userMessage` field
@@ -1036,10 +1128,44 @@ components/SettingsModal.tsx
 ---
 
 **Last Updated**: January 2025
-**Version**: 1.1.0
+**Version**: 1.3.0
 **Maintained By**: Development Team
 
 ## Recent Updates (January 2025)
+
+### Performance Improvements
+- **Article History Lazy Loading**: Implemented infinite scroll for article history
+  - Automatically loads more articles as user scrolls (200px threshold)
+  - Debounced scroll events (100ms) for smooth performance
+  - Loading indicators and end-of-list messages
+  - Better performance for users with many articles
+  - Removed traditional pagination controls in favor of infinite scroll
+
+### URL Processing Enhancements
+- **Improved Content Extraction**: Enhanced selectors for blog sites (nyquiste.com, etc.)
+- **Timeout Handling**: 30-second timeout with AbortController
+- **Retry Logic**: Automatic retries (up to 2) with exponential backoff
+- **Better Error Messages**: Specific, actionable error messages for different failure types
+- **URL Validation**: Validates URL format before processing
+- **Enhanced Fallback**: Better extraction from `<main>` elements and improved navigation pattern removal
+- **Error Categories**: Timeout, CORS, SSL, Invalid URL, Network errors with specific guidance
+
+### Password Reset Feature
+- **OTP-Based Flow**: Secure password reset using 6-digit OTP codes
+- **Email Integration**: OTP codes sent via Resend API
+- **Rate Limiting**: Max 3 OTP requests per hour per user
+- **Security**: OTP expires in 10 minutes, max 5 verification attempts
+- **Frontend Pages**: `/auth/forgot-password`, `/auth/verify-otp`, `/auth/reset-password`
+- **Database Migration**: `supabase/migrations/add_password_reset_fields.sql` adds password reset fields to users table
+
+### UI/UX Improvements
+- **Landing Page Default Language**: Landing page always defaults to English (ignores localStorage for non-logged-in users)
+- **Settings Modal**: Fixed-size modals (900px × calc(100vh - 4rem)) across all sections
+- **Navigation Alignment**: Vertically aligned navigation buttons with consistent spacing
+- **Button Styling**: Bold text, visible borders, increased spacing between buttons
+- **FOUC Prevention**: Flash of Unstyled Content prevention with skeleton loading states
+- **Floating Support Button**: Larger floating support button on landing page (80px × 80px, icon 40px × 40px)
+- **Article History Expand Button**: Larger fixed-position expand button (48px × 80px) when sidebar is collapsed
 
 ### Token Limits
 - Trial users: Increased from 1,000 to 5,000 tokens
