@@ -17,8 +17,21 @@ export function UserHomePage() {
   const [showSupport, setShowSupport] = useState(false);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const [showLanguageToggle, setShowLanguageToggle] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    // Check if mobile on mount and resize
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      // On mobile, collapse sidebar by default
+      if (window.innerWidth < 768) {
+        setIsHistoryCollapsed(true);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
     // Fetch user type from token usage API
     const fetchUserType = async () => {
       try {
@@ -57,14 +70,13 @@ export function UserHomePage() {
       loadPreferences();
     };
     window.addEventListener('preferencesUpdated', handlePreferencesUpdate);
+    
     return () => {
+      window.removeEventListener('resize', checkMobile);
       window.removeEventListener('preferencesUpdated', handlePreferencesUpdate);
     };
   }, []);
 
-  const handleArticleSelect = (articleId: string) => {
-    setSelectedArticleId(articleId || null);
-  };
 
   const handleArticleProcessed = () => {
     // Refresh article history after new article is processed
@@ -74,6 +86,14 @@ export function UserHomePage() {
 
   const handleCollapseHistory = () => {
     setIsHistoryCollapsed(prev => !prev);
+  };
+
+  const handleArticleSelect = (articleId: string) => {
+    setSelectedArticleId(articleId || null);
+    // On mobile, close drawer after selecting article
+    if (isMobile) {
+      setIsHistoryCollapsed(true);
+    }
   };
 
   if (loading) {
@@ -107,8 +127,38 @@ export function UserHomePage() {
 
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 80px)', position: 'relative' }}>
-      {/* Expand Button - shown when sidebar is collapsed */}
-      {isHistoryCollapsed && (
+      {/* Mobile: Hamburger menu button */}
+      {isMobile && isHistoryCollapsed && (
+        <button
+          onClick={handleCollapseHistory}
+          style={{
+            position: 'fixed',
+            top: '90px',
+            left: 'var(--spacing-md)',
+            padding: '0.75rem',
+            background: 'var(--color-background-secondary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--color-text-primary)',
+            cursor: 'pointer',
+            fontSize: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all var(--transition-base)',
+            width: '44px',
+            height: '44px',
+            zIndex: 1001,
+            boxShadow: 'var(--shadow-md)'
+          }}
+          aria-label="Open menu"
+        >
+          ☰
+        </button>
+      )}
+
+      {/* Desktop: Expand Button - shown when sidebar is collapsed */}
+      {!isMobile && isHistoryCollapsed && (
         <button
           onClick={handleCollapseHistory}
           style={{
@@ -152,38 +202,86 @@ export function UserHomePage() {
         </button>
       )}
 
+      {/* Mobile: Overlay backdrop when drawer is open */}
+      {isMobile && !isHistoryCollapsed && (
+        <div
+          onClick={handleCollapseHistory}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999,
+            transition: 'opacity var(--transition-base)'
+          }}
+        />
+      )}
+
       {/* Sidebar - Article History */}
       {!isHistoryCollapsed && (
-        <ArticleHistory 
-          onSelectArticle={handleArticleSelect} 
-          selectedArticleId={selectedArticleId}
-          refreshTrigger={refreshTrigger}
-          onCollapse={handleCollapseHistory}
-        />
+        <div
+          style={{
+            ...(isMobile ? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              bottom: 0,
+              width: '85%',
+              maxWidth: '320px',
+              zIndex: 1000,
+              transform: 'translateX(0)',
+              transition: 'transform var(--transition-base)',
+              boxShadow: '2px 0 12px rgba(0, 0, 0, 0.3)'
+            } : {})
+          }}
+        >
+          <ArticleHistory 
+            onSelectArticle={handleArticleSelect} 
+            selectedArticleId={selectedArticleId}
+            refreshTrigger={refreshTrigger}
+            onCollapse={handleCollapseHistory}
+          />
+        </div>
       )}
 
       {/* Main Content */}
       <div style={{ 
         flex: 1, 
-        padding: 'var(--spacing-xl)',
+        padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)',
+        width: isMobile && !isHistoryCollapsed ? '100%' : 'auto',
+        transition: 'padding var(--transition-base)'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: 'var(--spacing-md)',
+            flexWrap: 'wrap',
+            gap: 'var(--spacing-sm)'
+          }}>
             <div style={{ flex: 1 }}></div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 'var(--spacing-sm)',
+              flexWrap: 'wrap'
+            }}>
               {showLanguageToggle && <LanguageToggle />}
               <button
                 onClick={() => setShowSupport(true)}
                 className="outline"
                 style={{ 
-                  fontSize: '0.875rem',
-                  padding: '0.5rem 1rem',
+                  fontSize: isMobile ? '0.8125rem' : '0.875rem',
+                  padding: isMobile ? '0.5rem 0.75rem' : '0.5rem 1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem'
                 }}
               >
-                Contact Support
+                {isMobile ? 'Support' : 'Contact Support'}
               </button>
             </div>
           </div>
