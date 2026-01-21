@@ -202,6 +202,13 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
   const [playbackRate, setPlaybackRate] = useState(1);
   const [playbackRateInsights, setPlaybackRateInsights] = useState(1);
 
+  // Fact check states
+  const [factCheckLoading, setFactCheckLoading] = useState(false);
+  const [factCheckLoadingInsights, setFactCheckLoadingInsights] = useState(false);
+  // Shared fact-check results for both translation and insights
+  const [factCheckResults, setFactCheckResults] = useState<any[] | null>(null);
+  const [factCheckResultsInsights, setFactCheckResultsInsights] = useState<any[] | null>(null);
+
   // Fetch voice profiles on mount and when profiles are updated
   useEffect(() => {
     const fetchVoiceProfiles = async () => {
@@ -1037,6 +1044,78 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
     }
   };
 
+  // Helper function to get fact-check status
+  // Uses shared results - both translation and insights show the same status
+  const getFactCheckStatus = (isLoading: boolean): 'loading' | 'passed' | 'issues' | 'noResults' | null => {
+    if (isLoading || factCheckLoading || factCheckLoadingInsights) return 'loading';
+    
+    // Use shared results (both sections use the same results)
+    const results = factCheckResults || factCheckResultsInsights;
+    
+    if (results === null) return null; // Not checked yet
+    if (results.length === 0) return 'noResults';
+    
+    // Check if any results have negative ratings (FALSE, MIXED, etc.)
+    const hasIssues = results.some((result: any) => {
+      const rating = result.rating?.toUpperCase() || '';
+      return rating === 'FALSE' || rating === 'MIXED' || rating === 'MISLEADING' || rating === 'UNVERIFIED';
+    });
+    
+    return hasIssues ? 'issues' : 'passed';
+  };
+
+  const handleFactCheck = async (textOrUrl: string, isInsights: boolean = false, isUrl: boolean = false) => {
+    if (!textOrUrl || textOrUrl.trim().length === 0) {
+      return;
+    }
+
+    if (isInsights) {
+      setFactCheckLoadingInsights(true);
+      setFactCheckResultsInsights(null);
+    } else {
+      setFactCheckLoading(true);
+      setFactCheckResults(null);
+    }
+
+    try {
+      // Send URL or text to API - let server handle extraction to avoid CORS issues
+      const requestBody = isUrl 
+        ? { url: textOrUrl }  // Send URL, server will extract content
+        : { text: textOrUrl }; // Send text directly
+
+      const response = await fetch('/api/fact-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Fact check failed');
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+      
+      // Sync results across both translation and insights
+      setFactCheckResults(results);
+      setFactCheckResultsInsights(results);
+    } catch (error) {
+      console.error('Fact check error:', error);
+      // Sync empty results across both sections
+      setFactCheckResults([]);
+      setFactCheckResultsInsights([]);
+    } finally {
+      if (isInsights) {
+        setFactCheckLoadingInsights(false);
+      } else {
+        setFactCheckLoading(false);
+      }
+    }
+  };
+
   const handlePlayPause = (isInsights: boolean = false) => {
     const audio = isInsights ? audioElementInsights : audioElement;
     if (!audio) return;
@@ -1119,11 +1198,12 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
         
         <div style={{ 
           display: 'flex', 
-          gap: 'var(--spacing-lg)', 
+          gap: 'clamp(var(--spacing-xs), var(--spacing-lg), var(--spacing-lg))', 
           marginBottom: 'var(--spacing-lg)',
-          padding: 'var(--spacing-md)',
+          padding: 'clamp(var(--spacing-xs), var(--spacing-md), var(--spacing-md))',
           background: 'var(--color-background-secondary)',
-          borderRadius: 'var(--radius-md)'
+          borderRadius: 'var(--radius-md)',
+          flexWrap: 'wrap'
         }}>
           <label style={{ 
             position: 'relative',
@@ -1132,12 +1212,16 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             justifyContent: 'center',
             cursor: 'pointer',
             flex: 1,
-            padding: 'var(--spacing-sm)',
+            padding: 'clamp(var(--spacing-xs), var(--spacing-sm), var(--spacing-sm))',
             borderRadius: 'var(--radius-sm)',
-            background: inputType === 'url' ? 'var(--color-primary)' : 'transparent',
+            background: inputType === 'url' ? 'var(--color-primary)' : 'var(--color-background-tertiary)',
+            border: inputType === 'url' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
             color: inputType === 'url' ? 'white' : 'var(--color-text-primary)',
             transition: 'all var(--transition-base)',
-            textAlign: 'center'
+            textAlign: 'center',
+            minWidth: '80px',
+            fontSize: 'clamp(0.8125rem, 0.9375rem, 0.9375rem)',
+            opacity: inputType === 'url' ? 1 : 0.9
           }}>
             <input
               type="radio"
@@ -1164,10 +1248,12 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             flex: 1,
             padding: 'var(--spacing-sm)',
             borderRadius: 'var(--radius-sm)',
-            background: inputType === 'text' ? 'var(--color-primary)' : 'transparent',
+            background: inputType === 'text' ? 'var(--color-primary)' : 'var(--color-background-tertiary)',
+            border: inputType === 'text' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
             color: inputType === 'text' ? 'white' : 'var(--color-text-primary)',
             transition: 'all var(--transition-base)',
-            textAlign: 'center'
+            textAlign: 'center',
+            opacity: inputType === 'text' ? 1 : 0.9
           }}>
             <input
               type="radio"
@@ -1194,10 +1280,12 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
             flex: 1,
             padding: 'var(--spacing-sm)',
             borderRadius: 'var(--radius-sm)',
-            background: inputType === 'video' ? 'var(--color-primary)' : 'transparent',
+            background: inputType === 'video' ? 'var(--color-primary)' : 'var(--color-background-tertiary)',
+            border: inputType === 'video' ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
             color: inputType === 'video' ? 'white' : 'var(--color-text-primary)',
             transition: 'all var(--transition-base)',
-            textAlign: 'center'
+            textAlign: 'center',
+            opacity: inputType === 'video' ? 1 : 0.9
           }}>
             <input
               type="radio"
@@ -1219,22 +1307,64 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
 
         {inputType === 'url' ? (
           <>
-            <input
-              type="url"
-              placeholder={t('processor.input.placeholder.url')}
-              value={content}
-              onChange={(e) => {
-                setContent(e.target.value);
-                // Clear format error when user starts typing
-                if (formatError) {
-                  setFormatError(null);
-                }
-              }}
-              required
-              style={{
-                borderColor: formatError ? 'var(--color-error)' : undefined
-              }}
-            />
+            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+              <input
+                type="url"
+                placeholder={t('processor.input.placeholder.url')}
+                value={content}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  // Clear format error when user starts typing
+                  if (formatError) {
+                    setFormatError(null);
+                  }
+                }}
+                required
+                style={{
+                  borderColor: formatError ? 'var(--color-error)' : undefined,
+                  flex: 1
+                }}
+              />
+              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (content && content.trim()) {
+                      handleFactCheck(content, false, true);
+                    }
+                  }}
+                  disabled={factCheckLoading || !content || !content.trim()}
+                  style={{
+                    padding: '0.375rem 0.75rem',
+                    background: factCheckLoading || !content || !content.trim() ? 'var(--color-background-tertiary)' : 'var(--color-background-secondary)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--color-text-primary)',
+                    cursor: factCheckLoading || !content || !content.trim() ? 'not-allowed' : 'pointer',
+                    fontSize: '0.8125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    opacity: factCheckLoading || !content || !content.trim() ? 0.6 : 1,
+                    whiteSpace: 'nowrap'
+                  }}
+                  title={t('processor.factCheck')}
+                >
+                  {factCheckLoading ? (
+                    <>
+                      <span style={{ fontSize: '0.6875rem' }}>⏳</span>
+                      {t('processor.factCheck.checking')}
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '0.75rem' }}>✓</span>
+                      {t('processor.factCheck')}
+                    </>
+                  )}
+                </button>
+                <Helptip tooltip={t('processor.factCheck.helptip')} />
+              </div>
+            </div>
             {formatError && (
               <div style={{
                 marginTop: 'var(--spacing-xs)',
@@ -1251,22 +1381,64 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
           </>
         ) : inputType === 'video' ? (
           <>
-            <input
-              type="url"
-              placeholder={t('processor.input.placeholder.video')}
-              value={content}
-              onChange={(e) => {
-                setContent(e.target.value);
-                // Clear format error when user starts typing
-                if (formatError) {
-                  setFormatError(null);
-                }
-              }}
-              required
-              style={{
-                borderColor: formatError ? 'var(--color-error)' : undefined
-              }}
-            />
+            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+              <input
+                type="url"
+                placeholder={t('processor.input.placeholder.video')}
+                value={content}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  // Clear format error when user starts typing
+                  if (formatError) {
+                    setFormatError(null);
+                  }
+                }}
+                required
+                style={{
+                  borderColor: formatError ? 'var(--color-error)' : undefined,
+                  flex: 1
+                }}
+              />
+              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (content && content.trim()) {
+                      handleFactCheck(content, false, true);
+                    }
+                  }}
+                  disabled={factCheckLoading || !content || !content.trim()}
+                  style={{
+                    padding: '0.375rem 0.75rem',
+                    background: factCheckLoading || !content || !content.trim() ? 'var(--color-background-tertiary)' : 'var(--color-background-secondary)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--color-text-primary)',
+                    cursor: factCheckLoading || !content || !content.trim() ? 'not-allowed' : 'pointer',
+                    fontSize: '0.8125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    opacity: factCheckLoading || !content || !content.trim() ? 0.6 : 1,
+                    whiteSpace: 'nowrap'
+                  }}
+                  title={t('processor.factCheck')}
+                >
+                  {factCheckLoading ? (
+                    <>
+                      <span style={{ fontSize: '0.6875rem' }}>⏳</span>
+                      {t('processor.factCheck.checking')}
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '0.75rem' }}>✓</span>
+                      {t('processor.factCheck')}
+                    </>
+                  )}
+                </button>
+                <Helptip tooltip={t('processor.factCheck.helptip')} />
+              </div>
+            </div>
             {formatError && (
               <div style={{
                 marginTop: 'var(--spacing-xs)',
@@ -1283,21 +1455,64 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
           </>
         ) : (
           <>
-            <textarea
-              placeholder={t('processor.input.placeholder.text')}
-              value={content}
-              onChange={(e) => {
-                setContent(e.target.value);
-                // Clear format error when user starts typing
-                if (formatError) {
-                  setFormatError(null);
-                }
-              }}
-              required
-              style={{
-                borderColor: formatError ? 'var(--color-error)' : undefined
-              }}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+              <textarea
+                placeholder={t('processor.input.placeholder.text')}
+                value={content}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  // Clear format error when user starts typing
+                  if (formatError) {
+                    setFormatError(null);
+                  }
+                }}
+                required
+                style={{
+                  borderColor: formatError ? 'var(--color-error)' : undefined
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (content && content.trim()) {
+                        handleFactCheck(content, false, false);
+                      }
+                    }}
+                    disabled={factCheckLoading || !content || !content.trim()}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      background: factCheckLoading || !content || !content.trim() ? 'var(--color-background-tertiary)' : 'var(--color-background-secondary)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      color: 'var(--color-text-primary)',
+                      cursor: factCheckLoading || !content || !content.trim() ? 'not-allowed' : 'pointer',
+                      fontSize: '0.8125rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      opacity: factCheckLoading || !content || !content.trim() ? 0.6 : 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                    title={t('processor.factCheck')}
+                  >
+                    {factCheckLoading ? (
+                      <>
+                        <span style={{ fontSize: '0.6875rem' }}>⏳</span>
+                        {t('processor.factCheck.checking')}
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: '0.75rem' }}>✓</span>
+                        {t('processor.factCheck')}
+                      </>
+                    )}
+                  </button>
+                  <Helptip tooltip={t('processor.factCheck.helptip')} />
+                </div>
+              </div>
+            </div>
             {formatError && (
               <div style={{
                 marginTop: 'var(--spacing-xs)',
@@ -1725,7 +1940,79 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 </button>
               </div>
               {result?.translation && (
-                <div ref={translationExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                <div ref={translationExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Fact Check Button with Status Badge */}
+                  <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cleanedTranslation = (result?.translation || streamingTranslation || '').replace(/^#{1,4}\s+/gm, '');
+                          handleFactCheck(cleanedTranslation, false, false);
+                        }}
+                        disabled={factCheckLoading}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: factCheckLoading ? 'var(--color-background-tertiary)' : 'var(--color-background-secondary)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          color: 'var(--color-text-primary)',
+                          cursor: factCheckLoading ? 'not-allowed' : 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          opacity: factCheckLoading ? 0.6 : 1
+                        }}
+                        title={t('processor.factCheck')}
+                      >
+                        {factCheckLoading ? (
+                          <>
+                            <span style={{ fontSize: '0.75rem' }}>⏳</span>
+                            {t('processor.factCheck.checking')}
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: '0.875rem' }}>✓</span>
+                            {t('processor.factCheck')}
+                          </>
+                        )}
+                      </button>
+                      <Helptip tooltip={t('processor.factCheck.helptip')} />
+                    </div>
+                    {/* Status Badge */}
+                    {(() => {
+                      const status = getFactCheckStatus(factCheckLoading);
+                      if (!status || status === 'loading') return null;
+                      
+                      const statusConfig = {
+                        passed: { icon: '✅', text: t('processor.factCheck.status.passed'), color: 'var(--color-success)', bg: 'rgba(16, 185, 129, 0.1)' },
+                        issues: { icon: '⚠️', text: t('processor.factCheck.status.issues'), color: 'var(--color-warning)', bg: 'rgba(245, 158, 11, 0.1)' },
+                        noResults: { icon: 'ℹ️', text: t('processor.factCheck.status.noResults'), color: 'var(--color-text-secondary)', bg: 'var(--color-background-tertiary)' }
+                      };
+                      
+                      const config = statusConfig[status];
+                      if (!config) return null;
+                      
+                      return (
+                        <div style={{
+                          padding: '0.25rem 0.5rem',
+                          background: config.bg,
+                          border: `1px solid ${config.color}`,
+                          borderRadius: 'var(--radius-sm)',
+                          color: config.color,
+                          fontSize: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <span>{config.icon}</span>
+                          <span>{config.text}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
                   {!audioUrl ? (
                     <button
                       type="button"
@@ -1887,14 +2174,155 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
               )}
             </div>
             {!translationCollapsed && (
-              <div style={{ 
-                whiteSpace: 'pre-wrap', 
-                lineHeight: '1.8',
-                color: 'var(--color-text-primary)',
-                fontSize: '1.0625rem'
-              }}>
-                {result?.translation || streamingTranslation || ''}
-              </div>
+              <>
+                <div style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  lineHeight: '1.8',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '1.0625rem'
+                }}>
+                  {result?.translation || streamingTranslation || ''}
+                </div>
+                
+                {/* Fact Check Results Display - Shared with Insights */}
+                {(factCheckResults !== null || factCheckResultsInsights !== null) && (
+                  <div style={{
+                    marginTop: 'var(--spacing-lg)',
+                    padding: 'var(--spacing-md)',
+                    background: 'var(--color-background-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)'
+                  }}>
+                    <h3 style={{ 
+                      margin: '0 0 var(--spacing-md) 0', 
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      color: 'var(--color-text-primary)'
+                    }}>
+                      {t('processor.factCheck.results.title')}
+                    </h3>
+                    {(() => {
+                      // Use shared results (both sections show the same results)
+                      const sharedResults = factCheckResults || factCheckResultsInsights || [];
+                      return sharedResults.length === 0 ? (
+                      <div style={{
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '0.875rem',
+                        padding: 'var(--spacing-sm) 0'
+                      }}>
+                        {t('processor.factCheck.results.noResults')}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        {sharedResults.map((result: any, index: number) => {
+                          const rating = result.rating?.toUpperCase() || 'UNKNOWN';
+                          const ratingColor = rating === 'TRUE' || rating === 'VERIFIED' 
+                            ? 'var(--color-success)'
+                            : rating === 'FALSE' || rating === 'MISLEADING'
+                            ? 'var(--color-error)'
+                            : rating === 'MIXED'
+                            ? 'var(--color-warning)'
+                            : 'var(--color-text-secondary)';
+                          
+                          return (
+                            <div
+                              key={index}
+                              style={{
+                                padding: 'var(--spacing-md)',
+                                background: 'var(--color-background-tertiary)',
+                                borderRadius: 'var(--radius-sm)',
+                                border: `1px solid var(--color-border)`
+                              }}
+                            >
+                              {result.claim && (
+                                <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+                                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '0.875rem' }}>
+                                    {t('processor.factCheck.results.claim')}:
+                                  </strong>
+                                  <div style={{ 
+                                    color: 'var(--color-text-secondary)', 
+                                    fontSize: '0.875rem',
+                                    marginTop: '0.25rem',
+                                    lineHeight: 1.5
+                                  }}>
+                                    {result.claim}
+                                  </div>
+                                </div>
+                              )}
+                              <div style={{ 
+                                display: 'flex', 
+                                flexWrap: 'wrap',
+                                gap: 'var(--spacing-md)',
+                                alignItems: 'center',
+                                fontSize: '0.8125rem'
+                              }}>
+                                {result.rating && (
+                                  <div>
+                                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                                      {t('processor.factCheck.results.rating')}:
+                                    </strong>
+                                    <span style={{ 
+                                      color: ratingColor, 
+                                      marginLeft: '0.25rem',
+                                      fontWeight: 600
+                                    }}>
+                                      {result.rating}
+                                    </span>
+                                  </div>
+                                )}
+                                {result.publisher && (
+                                  <div>
+                                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                                      {t('processor.factCheck.results.publisher')}:
+                                    </strong>
+                                    <span style={{ color: 'var(--color-text-secondary)', marginLeft: '0.25rem' }}>
+                                      {result.publisher}
+                                    </span>
+                                  </div>
+                                )}
+                                {result.date && (
+                                  <div>
+                                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                                      {t('processor.factCheck.results.date')}:
+                                    </strong>
+                                    <span style={{ color: 'var(--color-text-secondary)', marginLeft: '0.25rem' }}>
+                                      {new Date(result.date).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                )}
+                                {result.url && (
+                                  <a
+                                    href={result.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      color: 'var(--color-primary)',
+                                      textDecoration: 'none',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      fontSize: '0.8125rem'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.textDecoration = 'underline';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.textDecoration = 'none';
+                                    }}
+                                  >
+                                    {t('processor.factCheck.results.viewSource')} →
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                    })()}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -1942,7 +2370,79 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
                 </button>
               </div>
               {result?.insights && (
-                <div ref={insightsExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                <div ref={insightsExportRef} style={{ position: 'relative', display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Fact Check Button with Status Badge */}
+                  <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cleanedInsights = (result?.insights || streamingInsights || '').replace(/^#{1,4}\s+/gm, '');
+                          handleFactCheck(cleanedInsights, true, false);
+                        }}
+                        disabled={factCheckLoadingInsights}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: factCheckLoadingInsights ? 'var(--color-background-tertiary)' : 'var(--color-background-secondary)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          color: 'var(--color-text-primary)',
+                          cursor: factCheckLoadingInsights ? 'not-allowed' : 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          opacity: factCheckLoadingInsights ? 0.6 : 1
+                        }}
+                        title={t('processor.factCheck')}
+                      >
+                        {factCheckLoadingInsights ? (
+                          <>
+                            <span style={{ fontSize: '0.75rem' }}>⏳</span>
+                            {t('processor.factCheck.checking')}
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: '0.875rem' }}>✓</span>
+                            {t('processor.factCheck')}
+                          </>
+                        )}
+                      </button>
+                      <Helptip tooltip={t('processor.factCheck.helptip')} />
+                    </div>
+                    {/* Status Badge */}
+                    {(() => {
+                      const status = getFactCheckStatus(factCheckLoadingInsights);
+                      if (!status || status === 'loading') return null;
+                      
+                      const statusConfig = {
+                        passed: { icon: '✅', text: t('processor.factCheck.status.passed'), color: 'var(--color-success)', bg: 'rgba(16, 185, 129, 0.1)' },
+                        issues: { icon: '⚠️', text: t('processor.factCheck.status.issues'), color: 'var(--color-warning)', bg: 'rgba(245, 158, 11, 0.1)' },
+                        noResults: { icon: 'ℹ️', text: t('processor.factCheck.status.noResults'), color: 'var(--color-text-secondary)', bg: 'var(--color-background-tertiary)' }
+                      };
+                      
+                      const config = statusConfig[status];
+                      if (!config) return null;
+                      
+                      return (
+                        <div style={{
+                          padding: '0.25rem 0.5rem',
+                          background: config.bg,
+                          border: `1px solid ${config.color}`,
+                          borderRadius: 'var(--radius-sm)',
+                          color: config.color,
+                          fontSize: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <span>{config.icon}</span>
+                          <span>{config.text}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
                   {!audioUrlInsights ? (
                     <button
                       type="button"
@@ -2107,14 +2607,155 @@ export default function ArticleProcessor({ selectedArticleId, onArticleProcessed
               )}
             </div>
             {!insightsCollapsed && (
-              <div style={{ 
-                whiteSpace: 'pre-wrap', 
-                lineHeight: '1.8',
-                color: 'var(--color-text-primary)',
-                fontSize: '1.0625rem'
-              }}>
-                {(result?.insights || streamingInsights || '').replace(/^#{1,4}\s+/gm, '')}
-              </div>
+              <>
+                <div style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  lineHeight: '1.8',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '1.0625rem'
+                }}>
+                  {(result?.insights || streamingInsights || '').replace(/^#{1,4}\s+/gm, '')}
+                </div>
+                
+                {/* Fact Check Results Display - Shared with Translation */}
+                {(factCheckResults !== null || factCheckResultsInsights !== null) && (
+                  <div style={{
+                    marginTop: 'var(--spacing-lg)',
+                    padding: 'var(--spacing-md)',
+                    background: 'var(--color-background-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)'
+                  }}>
+                    <h3 style={{ 
+                      margin: '0 0 var(--spacing-md) 0', 
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      color: 'var(--color-text-primary)'
+                    }}>
+                      {t('processor.factCheck.results.title')}
+                    </h3>
+                    {(() => {
+                      // Use shared results (both sections show the same results)
+                      const sharedResults = factCheckResults || factCheckResultsInsights || [];
+                      return sharedResults.length === 0 ? (
+                        <div style={{
+                          color: 'var(--color-text-secondary)',
+                          fontSize: '0.875rem',
+                          padding: 'var(--spacing-sm) 0'
+                        }}>
+                          {t('processor.factCheck.results.noResults')}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                          {sharedResults.map((result: any, index: number) => {
+                          const rating = result.rating?.toUpperCase() || 'UNKNOWN';
+                          const ratingColor = rating === 'TRUE' || rating === 'VERIFIED' 
+                            ? 'var(--color-success)'
+                            : rating === 'FALSE' || rating === 'MISLEADING'
+                            ? 'var(--color-error)'
+                            : rating === 'MIXED'
+                            ? 'var(--color-warning)'
+                            : 'var(--color-text-secondary)';
+                          
+                          return (
+                            <div
+                              key={index}
+                              style={{
+                                padding: 'var(--spacing-md)',
+                                background: 'var(--color-background-tertiary)',
+                                borderRadius: 'var(--radius-sm)',
+                                border: `1px solid var(--color-border)`
+                              }}
+                            >
+                              {result.claim && (
+                                <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+                                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '0.875rem' }}>
+                                    {t('processor.factCheck.results.claim')}:
+                                  </strong>
+                                  <div style={{ 
+                                    color: 'var(--color-text-secondary)', 
+                                    fontSize: '0.875rem',
+                                    marginTop: '0.25rem',
+                                    lineHeight: 1.5
+                                  }}>
+                                    {result.claim}
+                                  </div>
+                                </div>
+                              )}
+                              <div style={{ 
+                                display: 'flex', 
+                                flexWrap: 'wrap',
+                                gap: 'var(--spacing-md)',
+                                alignItems: 'center',
+                                fontSize: '0.8125rem'
+                              }}>
+                                {result.rating && (
+                                  <div>
+                                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                                      {t('processor.factCheck.results.rating')}:
+                                    </strong>
+                                    <span style={{ 
+                                      color: ratingColor, 
+                                      marginLeft: '0.25rem',
+                                      fontWeight: 600
+                                    }}>
+                                      {result.rating}
+                                    </span>
+                                  </div>
+                                )}
+                                {result.publisher && (
+                                  <div>
+                                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                                      {t('processor.factCheck.results.publisher')}:
+                                    </strong>
+                                    <span style={{ color: 'var(--color-text-secondary)', marginLeft: '0.25rem' }}>
+                                      {result.publisher}
+                                    </span>
+                                  </div>
+                                )}
+                                {result.date && (
+                                  <div>
+                                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                                      {t('processor.factCheck.results.date')}:
+                                    </strong>
+                                    <span style={{ color: 'var(--color-text-secondary)', marginLeft: '0.25rem' }}>
+                                      {new Date(result.date).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                )}
+                                {result.url && (
+                                  <a
+                                    href={result.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      color: 'var(--color-primary)',
+                                      textDecoration: 'none',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      fontSize: '0.8125rem'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.textDecoration = 'underline';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.textDecoration = 'none';
+                                    }}
+                                  >
+                                    {t('processor.factCheck.results.viewSource')} →
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                    })()}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>

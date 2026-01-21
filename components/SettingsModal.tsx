@@ -49,6 +49,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [previousUILanguage, setPreviousUILanguage] = useState<'en' | 'zh'>('en');
   const [loadingPreferences, setLoadingPreferences] = useState(false);
   const [savingPreferences, setSavingPreferences] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Update active section when initialSection changes or modal opens
   useEffect(() => {
@@ -485,29 +494,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.5)',
+        background: isMobile ? 'var(--color-background)' : 'rgba(0, 0, 0, 0.5)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: isMobile ? 'stretch' : 'center',
         justifyContent: 'center',
         zIndex: 99999,
-        padding: '2rem',
+        padding: isMobile ? '0' : '2rem',
         overflowY: 'auto',
       }}
-      onClick={onClose}
+      onClick={isMobile ? undefined : onClose}
     >
       <div
         className="card"
         style={{
-          maxWidth: '900px',
+          maxWidth: isMobile ? '100%' : '900px',
           width: '100%',
-          height: 'calc(100vh - 4rem)',
-          maxHeight: 'calc(100vh - 4rem)',
+          height: isMobile ? '100vh' : 'calc(100vh - 4rem)',
+          maxHeight: isMobile ? '100vh' : 'calc(100vh - 4rem)',
           overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'row',
+          flexDirection: isMobile ? 'column' : 'row',
           position: 'relative',
           boxSizing: 'border-box',
           margin: 'auto',
+          borderRadius: isMobile ? '0' : 'var(--radius-lg)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -543,19 +553,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
         {/* Left Navigation */}
         <div style={{
-          width: '200px',
-          minWidth: '200px',
-          borderRight: '1px solid var(--color-border)',
+          width: isMobile ? '100%' : '200px',
+          minWidth: isMobile ? 'auto' : '200px',
+          borderRight: isMobile ? 'none' : '1px solid var(--color-border)',
+          borderBottom: isMobile ? '1px solid var(--color-border)' : 'none',
           padding: 'var(--spacing-lg)',
           display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--spacing-md)',
+          flexDirection: isMobile ? 'row' : 'column',
+          gap: isMobile ? 'var(--spacing-xs)' : 'var(--spacing-md)',
           background: 'var(--color-background-secondary)',
           flexShrink: 0,
-          overflowY: 'auto',
-          maxHeight: 'calc(100vh - 4rem)',
+          overflowX: isMobile ? 'auto' : 'visible',
+          overflowY: isMobile ? 'visible' : 'auto',
+          maxHeight: isMobile ? 'auto' : 'calc(100vh - 4rem)',
           boxSizing: 'border-box',
-          height: '100%'
+          height: isMobile ? 'auto' : '100%'
         }}>
           <h3 style={{ margin: '0 0 var(--spacing-md) 0', fontSize: '1rem', fontWeight: 600 }}>
             {language === 'en' ? 'Settings' : '设置'}
@@ -571,15 +583,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               textAlign: 'left',
-              fontSize: '0.875rem',
+              fontSize: 'clamp(0.75rem, 0.875rem, 0.875rem)',
               fontWeight: 600,
               transition: 'all var(--transition-base)',
               display: 'flex',
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
-              height: '40px',
-              minHeight: '40px',
-              justifyContent: 'flex-start'
+              height: isMobile ? 'auto' : '40px',
+              minHeight: isMobile ? '44px' : '40px',
+              justifyContent: 'flex-start',
+              whiteSpace: isMobile ? 'nowrap' : 'normal'
             }}
           >
             👤 {language === 'en' ? 'User Info' : '用户信息'}
@@ -595,15 +608,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               textAlign: 'left',
-              fontSize: '0.875rem',
+              fontSize: 'clamp(0.75rem, 0.875rem, 0.875rem)',
               fontWeight: 600,
               transition: 'all var(--transition-base)',
               display: 'flex',
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
-              height: '40px',
-              minHeight: '40px',
-              justifyContent: 'flex-start'
+              height: isMobile ? 'auto' : '40px',
+              minHeight: isMobile ? '44px' : '40px',
+              justifyContent: 'flex-start',
+              whiteSpace: isMobile ? 'nowrap' : 'normal'
             }}
           >
             💳 {language === 'en' ? 'Subscription' : '订阅'}
@@ -644,15 +658,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               textAlign: 'left',
-              fontSize: '0.875rem',
+              fontSize: 'clamp(0.75rem, 0.875rem, 0.875rem)',
               fontWeight: 600,
               transition: 'all var(--transition-base)',
               display: 'flex',
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
-              height: '40px',
-              minHeight: '40px',
-              justifyContent: 'flex-start'
+              height: isMobile ? 'auto' : '40px',
+              minHeight: isMobile ? '44px' : '40px',
+              justifyContent: 'flex-start',
+              whiteSpace: isMobile ? 'nowrap' : 'normal'
             }}
           >
             🎤 {language === 'en' ? 'Add Your Thinking Style' : '添加您的思维风格'}
@@ -668,15 +683,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               textAlign: 'left',
-              fontSize: '0.875rem',
+              fontSize: 'clamp(0.75rem, 0.875rem, 0.875rem)',
               fontWeight: 600,
               transition: 'all var(--transition-base)',
               display: 'flex',
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
-              height: '40px',
-              minHeight: '40px',
-              justifyContent: 'flex-start'
+              height: isMobile ? 'auto' : '40px',
+              minHeight: isMobile ? '44px' : '40px',
+              justifyContent: 'flex-start',
+              whiteSpace: isMobile ? 'nowrap' : 'normal'
             }}
           >
             ⚙️ {language === 'en' ? 'Preferences' : '偏好设置'}

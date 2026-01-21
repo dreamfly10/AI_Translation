@@ -85,7 +85,9 @@ function HomeContent() {
           maxWidth: '1200px', 
           margin: '0 auto',
           display: 'flex', 
-          alignItems: 'center' 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 'var(--spacing-sm)'
         }}>
           <Link href="/" style={{ 
             textDecoration: 'none', 
@@ -93,21 +95,35 @@ function HomeContent() {
             flex: 1,
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            minWidth: 0
           }}>
             <img 
               src="/public.png" 
               alt="Expression Copilot Logo" 
               style={{
-                height: '6.5rem',
+                height: 'clamp(3rem, 6.5rem, 6.5rem)',
                 width: 'auto',
                 objectFit: 'contain'
               }}
             />
-            <h1 style={{ margin: 0, fontSize: '2.25rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('nav.title')}</h1>
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: 'clamp(1.25rem, 2.25rem, 2.25rem)', 
+              fontWeight: 700, 
+              color: 'var(--color-text-primary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>{t('nav.title')}</h1>
           </Link>
           {!session && (
-            <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+            <div style={{ 
+              display: 'flex', 
+              gap: 'var(--spacing-sm)', 
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}>
               <div style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}>
                 <LanguageToggle />
               </div>
@@ -115,12 +131,13 @@ function HomeContent() {
                 className="outline"
                 onClick={() => window.location.href = '/auth/signin'}
                 style={{
-                  fontSize: '1rem',
-                  padding: 'var(--spacing-md) var(--spacing-xl)',
+                  fontSize: 'clamp(0.875rem, 1rem, 1rem)',
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
                   fontWeight: 500,
                   background: 'transparent',
                   color: 'var(--color-text-primary)',
-                  border: '1px solid var(--color-border)'
+                  border: '1px solid var(--color-border)',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {t('auth.logIn')}
@@ -128,14 +145,15 @@ function HomeContent() {
               <button 
                 onClick={() => setShowGetStarted(true)}
                 style={{
-                  fontSize: '1rem',
-                  padding: 'var(--spacing-md) var(--spacing-xl)',
+                  fontSize: 'clamp(0.875rem, 1rem, 1rem)',
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
                   background: 'var(--color-background-secondary)',
                   color: 'var(--color-text-primary)',
                   border: 'none',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',
-                  fontWeight: 500
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {t('auth.getStarted')}
@@ -157,16 +175,16 @@ function HomeContent() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '40px',
-                padding: '24px 64px 48px 64px'
+                gap: 'clamp(24px, 40px, 40px)',
+                padding: 'clamp(24px, 48px, 64px) clamp(16px, 64px, 64px)'
               }}>
                 {/* Video at the top */}
                 <div className="right" style={{ 
                   position: 'relative', 
                   width: '100%',
                   maxWidth: '1000px',
-                  height: '600px', 
-                  minHeight: '500px', 
+                  height: 'clamp(300px, 600px, 600px)', 
+                  minHeight: 'clamp(250px, 500px, 500px)', 
                   overflow: 'hidden'
                 }}>
                   <video
@@ -193,19 +211,25 @@ function HomeContent() {
                   <p style={{ margin: '0 0 24px 0', color: 'var(--color-text-secondary)', fontSize: '1rem', fontWeight: 400, opacity: 0.8 }}>
                     {t('home.hero.subtitle')}
                   </p>
-                  <p style={{ maxWidth: '700px', margin: '0 auto 32px', color: 'var(--color-text-secondary)', fontSize: '1.125rem', lineHeight: 1.6 }}>
+                  <p style={{ 
+                    maxWidth: '700px', 
+                    margin: '0 auto clamp(24px, 32px, 32px)', 
+                    color: 'var(--color-text-secondary)', 
+                    fontSize: 'clamp(0.9375rem, 1.125rem, 1.125rem)', 
+                    lineHeight: 1.6 
+                  }}>
                     {t('home.hero.description')}
                   </p>
                   <div className="actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <button
                       onClick={() => setShowGetStarted(true)}
                       style={{
-                        padding: 'var(--spacing-lg) var(--spacing-2xl)',
+                        padding: 'clamp(var(--spacing-md), var(--spacing-lg), var(--spacing-lg)) clamp(var(--spacing-lg), var(--spacing-2xl), var(--spacing-2xl))',
                         background: 'var(--color-background-secondary)',
                         color: 'var(--color-text-primary)',
                         border: 'none',
                         borderRadius: 'var(--radius-md)',
-                        fontSize: '1.25rem',
+                        fontSize: 'clamp(1rem, 1.25rem, 1.25rem)',
                         fontWeight: 600,
                         cursor: 'pointer',
                         transition: 'all var(--transition-base)'
@@ -460,10 +484,10 @@ function HomeContent() {
           onClick={() => setShowSupport(true)}
           style={{
             position: 'fixed',
-            bottom: 'var(--spacing-xl)',
-            right: 'var(--spacing-xl)',
-            width: '80px',
-            height: '80px',
+            bottom: 'clamp(var(--spacing-md), var(--spacing-xl), var(--spacing-xl))',
+            right: 'clamp(var(--spacing-md), var(--spacing-xl), var(--spacing-xl))',
+            width: 'clamp(60px, 80px, 80px)',
+            height: 'clamp(60px, 80px, 80px)',
             borderRadius: '50%',
             background: '#000000',
             border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -488,8 +512,8 @@ function HomeContent() {
         >
           {/* Chat/Speech Bubble Icon */}
           <svg
-            width="40"
-            height="40"
+            width="clamp(30, 40, 40)"
+            height="clamp(30, 40, 40)"
             viewBox="0 0 28 28"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"

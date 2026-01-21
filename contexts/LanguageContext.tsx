@@ -150,6 +150,19 @@ const translations: Record<Language, Record<string, string>> = {
     'processor.download': 'Download',
     'processor.textToSpeech': 'Play Audio',
     'processor.textToSpeech.generating': 'Generating audio...',
+    'processor.factCheck': 'Fact Check',
+    'processor.factCheck.checking': 'Checking...',
+    'processor.factCheck.helptip': 'Note: Not all claims will have existing fact-checks',
+    'processor.factCheck.status.passed': 'All claims verified',
+    'processor.factCheck.status.issues': 'Issues found',
+    'processor.factCheck.status.noResults': 'No fact-checks found',
+    'processor.factCheck.results.title': 'Fact Check Results',
+    'processor.factCheck.results.claim': 'Claim',
+    'processor.factCheck.results.rating': 'Rating',
+    'processor.factCheck.results.publisher': 'Publisher',
+    'processor.factCheck.results.date': 'Date',
+    'processor.factCheck.results.viewSource': 'View Source',
+    'processor.factCheck.results.noResults': 'No existing fact-checks found for this content.',
     'processor.collapse': 'Collapse',
     'processor.expand': 'Expand',
     
@@ -324,6 +337,19 @@ const translations: Record<Language, Record<string, string>> = {
     'processor.download': '下载',
     'processor.textToSpeech': '播放音频',
     'processor.textToSpeech.generating': '正在生成音频...',
+    'processor.factCheck': '事实核查',
+    'processor.factCheck.checking': '检查中...',
+    'processor.factCheck.helptip': '注意：并非所有声明都有现有的事实核查',
+    'processor.factCheck.status.passed': '所有声明已验证',
+    'processor.factCheck.status.issues': '发现问题',
+    'processor.factCheck.status.noResults': '未找到事实核查',
+    'processor.factCheck.results.title': '事实核查结果',
+    'processor.factCheck.results.claim': '声明',
+    'processor.factCheck.results.rating': '评级',
+    'processor.factCheck.results.publisher': '发布者',
+    'processor.factCheck.results.date': '日期',
+    'processor.factCheck.results.viewSource': '查看来源',
+    'processor.factCheck.results.noResults': '未找到此内容的事实核查。',
     'processor.collapse': '收起',
     'processor.expand': '展开',
     
@@ -384,13 +410,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           }
         } else if (response.status === 401) {
           // User is not logged in (landing page) - default to English
+          // This is expected behavior, not an error
           setLanguageState('en');
           // Don't overwrite localStorage, but don't use it either for landing page
           // This allows language toggle to work but defaults to English on page load
           return;
         }
       } catch (err) {
-        // API failed - likely landing page, default to English
+        // API failed - likely landing page or network issue, default to English
+        // Silently handle - this is expected for non-logged-in users
         setLanguageState('en');
         return;
       }
