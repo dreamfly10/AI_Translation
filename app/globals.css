@@ -330,3 +330,113 @@ nav {
 .mb-2 { margin-bottom: var(--spacing-lg); }
 .mb-3 { margin-bottom: var(--spacing-xl); }
 
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE & TABLET
+   Desktop styles remain unchanged above 1024px
+   ============================================ */
+
+/* Tablet adjustments (768px - 1024px) */
+@media (max-width: 1024px) {
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+  
+  h1 {
+    font-size: 3rem;
+  }
+  
+  h2 {
+    font-size: 2rem;
+  }
+}
+
+/* Mobile styles (< 768px) */
+@media (max-width: 768px) {
+  /* Typography - smaller for mobile */
+  h1 {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+  
+  h2 {
+    font-size: 1.75rem;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+  }
+  
+  h4 {
+    font-size: 1.25rem;
+  }
+  
+  p {
+    font-size: 0.9375rem;
+  }
+  
+  /* Navigation - mobile adjustments */
+  nav {
+    padding: var(--spacing-md) 0;
+  }
+  
+  /* Hero section - mobile */
+  .hero {
+    padding: var(--spacing-xl) 0;
+  }
+  
+  .hero p {
+    font-size: 1rem;
+  }
+  
+  /* Buttons - larger touch targets */
+  button {
+    padding: 0.875rem 1.25rem;
+    min-height: 44px; /* iOS recommended touch target */
+    font-size: 1rem;
+  }
+  
+  /* Inputs - mobile friendly */
+  input,
+  textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.875rem;
+  }
+  
+  /* Cards - less padding on mobile */
+  .card {
+    padding: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+  }
+  
+  /* Feature cards grid - single column */
+  .features {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+    margin: var(--spacing-xl) 0;
+  }
+  
+  /* Container padding - reduced on mobile */
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+}
+
+/* Small mobile (< 480px) */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.75rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+  }
+  
+  .container {
+    padding: 0 var(--spacing-sm);
+  }
+}

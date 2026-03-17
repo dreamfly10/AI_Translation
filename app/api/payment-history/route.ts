@@ -67,6 +67,7 @@ export async function GET(request: Request) {
       // Format invoices for the frontend
       const formattedInvoices = invoices.data.map((invoice) => ({
         id: invoice.id,
+        payment_intent: (invoice as any).payment_intent || null,
         amount_paid: invoice.amount_paid,
         amount_due: invoice.amount_due,
         currency: invoice.currency,

@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { VoiceProfileModal } from './VoiceProfileModal';
 import { useSettingsModal } from '@/contexts/SettingsModalContext';
 import { styleArchetypes, styleArchetypeKeys, getAllDefaultStyles } from '@/lib/prompt-styles';
+import Link from 'next/link';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { t, language, setLanguage } = useLanguage();
   const { initialSection } = useSettingsModal();
   const [activeSection, setActiveSection] = useState<'userInfo' | 'subscription' | 'paymentHistory' | 'voiceProfile' | 'preferences'>(initialSection || 'userInfo');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showVoiceProfileModal, setShowVoiceProfileModal] = useState(false);
   const [voiceProfiles, setVoiceProfiles] = useState<any[]>([]);
   const [firstName, setFirstName] = useState('');
@@ -86,8 +88,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       fetchUserType();
       fetchTokenPrices();
       fetchVoiceProfiles();
+      fetchIsAdmin();
     }
   }, [isOpen, session]);
+
+  const fetchIsAdmin = async () => {
+    try {
+      const response = await fetch('/api/admin/me');
+      if (response.ok) {
+        const data = await response.json();
+        setIsAdmin(!!data?.isAdmin);
+      }
+    } catch (err) {
+      setIsAdmin(false);
+    }
+  };
 
   // Fetch preferences when preferences section is active
   useEffect(() => {
@@ -697,6 +712,36 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           >
             ⚙️ {language === 'en' ? 'Preferences' : '偏好设置'}
           </button>
+
+          {isAdmin && (
+            <Link
+              href="/admin"
+              style={{
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                background: 'transparent',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                transition: 'all var(--transition-base)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-sm)',
+                whiteSpace: 'nowrap',
+                height: '40px',
+                minHeight: '40px',
+                justifyContent: 'flex-start',
+                textDecoration: 'none'
+              }}
+              onClick={onClose}
+              title="Admin"
+            >
+              🛡️ Admin
+            </Link>
+          )}
         </div>
 
         {/* Right Content */}

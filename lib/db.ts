@@ -100,6 +100,58 @@ export const db = {
       return data ? this.mapUser(data) : null;
     },
 
+    async findByPaymentId(paymentId: string): Promise<User | null> {
+      if (!isSupabaseConfigured()) {
+        return null;
+      }
+
+      const { data, error } = await supabaseServer
+        .from('users')
+        .select('*')
+        .eq('payment_id', paymentId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        console.error('Error finding user by payment_id:', error);
+        throw error;
+      }
+
+      return data ? this.mapUser(data) : null;
+    },
+
+    async list(options?: {
+      query?: string;
+      limit?: number;
+      offset?: number;
+    }): Promise<User[]> {
+      if (!isSupabaseConfigured()) {
+        return [];
+      }
+
+      const limit = Math.min(Math.max(options?.limit ?? 25, 1), 100);
+      const offset = Math.max(options?.offset ?? 0, 0);
+      const query = (options?.query || '').trim();
+
+      let q = supabaseServer.from('users').select('*').order('created_at', { ascending: false });
+
+      if (query) {
+        // Search by email or name (case-insensitive)
+        q = q.or(`email.ilike.%${query}%,name.ilike.%${query}%`);
+      }
+
+      const { data, error } = await q.range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('Error listing users:', error);
+        throw error;
+      }
+
+      return (data || []).map((row: any) => this.mapUser(row));
+    },
+
     async findById(id: string): Promise<User | null> {
       const { data, error } = await supabaseServer
         .from('users')
